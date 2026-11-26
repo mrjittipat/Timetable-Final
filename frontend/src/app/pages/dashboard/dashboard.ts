@@ -71,22 +71,29 @@ import { IconComponent } from '../../shared/icon';
             </div>
             <div class="card-body">
               @if (tblTeacher()) {
-                <div class="table-wrap" style="max-height: 290px">
+                <div class="table-wrap" style="max-height: 320px">
                   <table class="table">
                     <thead><tr><th>รหัส</th><th>ชื่ออาจารย์</th><th>คาบ</th></tr></thead>
                     <tbody>
                       @for (t of st.teacherLoad; track t.id) {
-                        <tr><td class="mono">{{ t.id }}</td><td>{{ t.name }}</td><td><strong>{{ t.periods }}</strong></td></tr>
+                        <tr>
+                          <td class="mono">{{ t.id }}</td>
+                          <td>
+                            @if (t.role === 'Leader') { <span class="l-tag" title="ผู้บริหาร">L</span> }
+                            {{ t.name }}
+                          </td>
+                          <td><strong>{{ t.periods }}</strong></td>
+                        </tr>
                       }
                     </tbody>
                   </table>
                 </div>
               } @else {
-                <div class="bars" role="img" aria-label="ภาระสอนของอาจารย์">
-                  @for (t of st.teacherLoad.slice(0, 12); track t.id) {
-                    <div class="bar-row" [title]="t.name + ': ' + t.periods + ' คาบ'">
+                <div class="bars scroll-bars" role="img" aria-label="ภาระสอนของอาจารย์">
+                  @for (t of st.teacherLoad; track t.id) {
+                    <div class="bar-row" [title]="(t.role === 'Leader' ? '[ผู้บริหาร] ' : '') + t.name + ': ' + t.periods + ' คาบ'">
                       <div class="bar-lbl">
-                        @if (t.role === 'Leader') { <span class="l-tag">L</span> }
+                        @if (t.role === 'Leader') { <span class="l-tag" title="ผู้บริหาร">L</span> }
                         {{ t.name }}
                       </div>
                       <div class="bar-track">
@@ -161,9 +168,9 @@ import { IconComponent } from '../../shared/icon';
                 </table>
               </div>
             } @else {
-              <div class="bars-grid" role="img" aria-label="การใช้ห้องเรียนและสนาม">
-                @for (r of st.roomUsage.slice(0, 14); track r.id) {
-                  <div class="bar-row">
+              <div class="bars-grid scroll-bars" role="img" aria-label="การใช้ห้องเรียนและสนาม">
+                @for (r of st.roomUsage; track r.id) {
+                  <div class="bar-row" [title]="r.name + ': ' + r.periods + ' คาบ (' + r.pct + '%)'">
                     <div class="bar-lbl">{{ r.name }}</div>
                     <div class="bar-track"><div class="bar-fill" [style.width.%]="r.pct"></div></div>
                     <div class="bar-num">{{ r.pct }}%</div>
@@ -253,7 +260,9 @@ import { IconComponent } from '../../shared/icon';
     .kpi-hint { font-size: 12px; color: var(--text-muted); }
 
     .bars { display: flex; flex-direction: column; gap: 8px; }
-    .bars-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; }
+    .bars-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; align-content: start; }
+    .scroll-bars { max-height: 320px; overflow-y: auto; padding-right: 6px; }
+    .bars-grid.scroll-bars { max-height: 290px; }
     .bar-row { display: grid; grid-template-columns: 165px 1fr 44px; align-items: center; gap: 8px; font-size: 12.5px; }
     .bar-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .l-tag { display: inline-block; background: var(--maroon-700); color: #fff; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px; margin-right: 4px; }
