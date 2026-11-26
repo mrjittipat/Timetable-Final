@@ -427,6 +427,15 @@ const FOCUS_LABELS: Record<string, string> = {
                     <input class="input" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.loginButtonText" (ngModelChange)="patchPublic({ loginButtonText: $event })" />
                   </div>
                 </div>
+                <div class="field" (mouseenter)="focus.set('pubHero')" (focusin)="focus.set('pubHero')">
+                  <label>ลวดลายตกแต่งส่วนหัว (Hero Pattern)</label>
+                  <div class="segmented">
+                    <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.heroPattern || 'grid') === 'grid'" (click)="patchPublic({ heroPattern: 'grid' })">ตาราง</button>
+                    <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.heroPattern === 'dots'" (click)="patchPublic({ heroPattern: 'dots' })">จุด</button>
+                    <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.heroPattern === 'waves'" (click)="patchPublic({ heroPattern: 'waves' })">เฉียง</button>
+                    <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.heroPattern === 'none'" (click)="patchPublic({ heroPattern: 'none' })">ไม่มี</button>
+                  </div>
+                </div>
                 @if (draft().public.heroStyle === 'image' && auth.isAdmin()) {
                   <div class="row" (mouseenter)="focus.set('pubHero')">
                     <input #pubBgIn type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPublicBgFile($event)" />
@@ -974,8 +983,9 @@ const FOCUS_LABELS: Record<string, string> = {
               <div class="mock-browser">
                 <div class="mock-bar"><span class="mb-dot" style="background:#f87171"></span><span class="mb-dot" style="background:#fbbf24"></span><span class="mb-dot" style="background:#34d399"></span><span class="mb-url">/p · ตารางเรียนสาธารณะ</span></div>
                 <div class="hl-zone" [class.hl-on]="isHl('pubHero')" [style.background]="publicPreviewHeroBg()"
-                     style="color: #fff; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; background-size: cover; background-position: center">
-                  <div class="row" style="gap: 8px">
+                     style="position: relative; overflow: hidden; color: #fff; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; background-size: cover; background-position: center">
+                  <div class="mini-pat" [class]="draft().public.heroPattern || 'grid'"></div>
+                  <div class="row" style="gap: 8px; position: relative; z-index: 1">
                     @if (draft().public.showLogo) {
                       <div class="mini-logo-tile hl-zone" [class]="draft().logoShape" [class.hl-on]="isHl('pubLogo')"><img [src]="draft().logoDataUrl || 'logo.png'" alt="logo" /></div>
                     }
@@ -985,7 +995,7 @@ const FOCUS_LABELS: Record<string, string> = {
                     </div>
                   </div>
                   @if (draft().public.showLoginButton) {
-                    <span class="hl-zone" [class.hl-on]="isHl('pubLoginBtn')" style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 6px; font-size: 9px">{{ draft().public.loginButtonText }}</span>
+                    <span class="hl-zone" [class.hl-on]="isHl('pubLoginBtn')" style="position: relative; z-index: 1; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 6px; font-size: 9px">{{ draft().public.loginButtonText }}</span>
                   }
                 </div>
                 <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px">

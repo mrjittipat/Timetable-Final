@@ -13,13 +13,13 @@ import { Toasts } from '../../core/toast';
       <div class="page-head">
         <div>
           <div class="eyebrow">ศูนย์สื่อสารอาจารย์และผู้ดูแล</div>
-          <h1>{{ auth.isAdmin() ? 'คำขอจากอาจารย์' : 'คำขอและบันทึกช่วยจำ' }}</h1>
+          <h1>{{ auth.isAdmin() ? 'คำขอจากครู' : 'คำขอและบันทึกช่วยจำ' }}</h1>
         </div>
       </div>
 
-      <div class="grid-2">
+      <div class="hub-stack">
         <div class="card">
-          <div class="card-head"><h3>คำขอย้าย/เปลี่ยนคาบสอน ({{ requests().length }})</h3></div>
+          <div class="card-head"><h3>คำขอย้าย / เปลี่ยนคาบสอน ({{ requests().length }})</h3></div>
           <div class="card-body" style="display: flex; flex-direction: column; gap: 10px">
             @if (requests().length === 0) {
               <div class="muted small">ยังไม่มีคำขอ</div>
@@ -44,29 +44,34 @@ import { Toasts } from '../../core/toast';
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-head"><h3>บันทึกช่วยจำส่วนตัว ({{ notes().length }})</h3></div>
-          <div class="card-body" style="display: flex; flex-direction: column; gap: 10px">
-            <div class="row">
-              <input class="input" style="flex: 1" [(ngModel)]="noteTitle" placeholder="หัวข้อบันทึก…" />
-              <button class="btn sm primary" type="button" (click)="addNote()">เพิ่มบันทึก</button>
-            </div>
-            <textarea class="input" rows="2" [(ngModel)]="noteContent" placeholder="รายละเอียด…"></textarea>
-            @for (n of notes(); track n.id) {
-              <div class="req-box">
-                <div class="row" style="justify-content: space-between">
-                  <strong>{{ n.title }}</strong>
-                  <button class="btn sm ghost" style="color: var(--danger)" type="button" (click)="delNote(n.id)">ลบ</button>
-                </div>
-                <div class="small muted">{{ n.content }}</div>
+        @if (!auth.isAdmin()) {
+          <div class="card">
+            <div class="card-head"><h3>บันทึกช่วยจำส่วนตัว ({{ notes().length }})</h3></div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 10px">
+              <div class="row">
+                <input class="input" style="flex: 1" [(ngModel)]="noteTitle" placeholder="หัวข้อบันทึก…" />
+                <button class="btn sm primary" type="button" (click)="addNote()">เพิ่มบันทึก</button>
               </div>
-            }
+              <textarea class="input" rows="2" [(ngModel)]="noteContent" placeholder="รายละเอียด…"></textarea>
+              @for (n of notes(); track n.id) {
+                <div class="req-box">
+                  <div class="row" style="justify-content: space-between">
+                    <strong>{{ n.title }}</strong>
+                    <button class="btn sm ghost" style="color: var(--danger)" type="button" (click)="delNote(n.id)">ลบ</button>
+                  </div>
+                  <div class="small muted">{{ n.content }}</div>
+                </div>
+              }
+            </div>
           </div>
-        </div>
+        }
       </div>
     </div>
   `,
-  styles: `.req-box { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }`,
+  styles: `
+    .hub-stack { display: flex; flex-direction: column; gap: 16px; }
+    .req-box { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  `,
 })
 export class TeacherHubPage implements OnInit {
   private api = inject(Api);
@@ -79,7 +84,13 @@ export class TeacherHubPage implements OnInit {
   noteContent = '';
 
   async ngOnInit() { await this.load(); }
+
   async load() {
+    if (this.auth.isAdmin()) {
+      const r = await this.api.getTeacherRequests();
+      this.requests.set(r.requests || []);
+      return;
+    }
     const [r, n] = await Promise.all([this.api.getTeacherRequests(), this.api.getTeacherNotes()]);
     this.requests.set(r.requests || []);
     this.notes.set(n.notes || []);

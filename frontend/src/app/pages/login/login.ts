@@ -96,15 +96,54 @@ import { IconComponent } from '../../shared/icon';
                 <a routerLink="/p" class="btn" style="width: 100%">{{ theme.appearance().loginPublicLinkText }}</a>
               }
             </div>
+          } @else if (regSuccess()) {
+            <div class="auth-body">
+              <div class="icon-tile success-tile"><app-icon name="check" [size]="24" /></div>
+              <h2>{{ theme.appearance().registerPendingTitle || 'ส่งคำขอสมัครบัญชีครูแล้ว' }}</h2>
+              <p class="muted small">
+                บัญชี <strong>{{ regName || regUsername }}</strong> (<span class="mono">{{ regUsername }}</span>) ถูกส่งเข้าสู่ระบบเรียบร้อยแล้ว
+              </p>
+
+              <div class="reg-steps">
+                <div class="reg-step done">
+                  <div class="rs-dot">✓</div>
+                  <div class="rs-body">
+                    <div class="rs-title">ส่งคำขอไปแล้ว</div>
+                    <div class="rs-sub">บันทึกคำขอสมัครบัญชีอาจารย์เข้าสู่ระบบแล้ว</div>
+                  </div>
+                  <span class="badge success">เสร็จสิ้น</span>
+                </div>
+                <div class="reg-step active">
+                  <div class="rs-dot">2</div>
+                  <div class="rs-body">
+                    <div class="rs-title">รอแอดมินอนุมัติ</div>
+                    <div class="rs-sub">ผู้ดูแลระบบจะตรวจสอบและกดอนุมัติในหน้าจัดการผู้ใช้งาน</div>
+                  </div>
+                  <span class="badge warning">กำลังรอ</span>
+                </div>
+                <div class="reg-step">
+                  <div class="rs-dot">3</div>
+                  <div class="rs-body">
+                    <div class="rs-title">ยืนยันเรียบร้อย</div>
+                    <div class="rs-sub">เมื่อได้รับอนุมัติแล้ว สามารถเข้าสู่ระบบใช้งานได้ทันที</div>
+                  </div>
+                  <span class="badge">ถัดไป</span>
+                </div>
+              </div>
+
+              <div class="form" style="margin-top: 18px">
+                <button class="btn primary lg" type="button" (click)="backToLogin()" style="width: 100%">กลับหน้าเข้าสู่ระบบ</button>
+                @if (theme.appearance().loginShowPublicLink !== false) {
+                  <a routerLink="/p" class="btn" style="width: 100%">{{ theme.appearance().loginPublicLinkText || 'ดูตารางเรียนสาธารณะ' }}</a>
+                }
+              </div>
+            </div>
           } @else {
             <div class="auth-body">
               <div class="icon-tile"><app-icon name="users" [size]="24" /></div>
               <h2>{{ theme.appearance().registerTitle }}</h2>
               <p class="muted small">{{ theme.appearance().registerSubtitle }}</p>
 
-              @if (regSuccess()) {
-                <div class="alert success" style="margin-top: 12px">{{ theme.appearance().registerPendingTitle }}</div>
-              }
               @if (error()) {
                 <div class="alert danger" style="margin-top: 12px">{{ error() }}</div>
               }
@@ -217,6 +256,24 @@ import { IconComponent } from '../../shared/icon';
       width: 46px; height: 46px; border-radius: 12px; background: var(--maroon-100);
       color: var(--maroon-700); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
     }
+    .icon-tile.success-tile { background: #e8f8ee; color: #16803d; }
+    .reg-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .reg-step {
+      display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+      border-radius: 12px; border: 1px solid var(--border); background: var(--bg);
+    }
+    .reg-step.done { border-color: #a7e3be; background: #f2fbf5; }
+    .reg-step.active { border-color: #f3c969; background: #fffaf0; }
+    .rs-dot {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; background: var(--border); color: var(--text-muted);
+    }
+    .reg-step.done .rs-dot { background: #16803d; color: #fff; }
+    .reg-step.active .rs-dot { background: #d97706; color: #fff; }
+    .rs-body { flex: 1; min-width: 0; }
+    .rs-title { font-weight: 700; font-size: 13.5px; }
+    .rs-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
     .form { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
     .pw-row { display: flex; gap: 8px; }
     .reg-cta { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; }
@@ -263,6 +320,16 @@ export class LoginPage implements OnInit {
     if (this.route.snapshot.queryParamMap.get('mode') === 'register') {
       this.openRegister();
     }
+  }
+
+  backToLogin() {
+    this.registerMode.set(false);
+    this.regSuccess.set(false);
+    this.error.set('');
+    this.regTeacherId = '';
+    this.regName = '';
+    this.regUsername = '';
+    this.regPassword = '';
   }
 
   async openRegister() {
