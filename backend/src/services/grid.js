@@ -250,6 +250,27 @@ export function subjectSummary(view, id, rows, ctx) {
     });
   }
 
+  // Include Year 4 practicum subjects (e.g. กศ 021037 ปฏิบัติการสอนในสถานศึกษา 4)
+  // in the responsible teachers' subject summary without scheduling any timetable slots.
+  if (view === 'teacher') {
+    for (const sub of ctx.subjects.values()) {
+      if (sub.special_mode !== 'practicum_y4') continue;
+      if (seen.has(sub.subject_id)) continue;
+      const assigned = ctx.teachersBySubject.get(sub.subject_id) || [];
+      if (!assigned.includes(id)) continue;
+      seen.add(sub.subject_id);
+      list.push({
+        subject_id: sub.subject_id,
+        name: sub.subject_name,
+        n: Number(sub.credit) || 0,
+        t: 0,
+        p: 0,
+        s: 0,
+        h: 0,
+      });
+    }
+  }
+
   list.sort((a, b) => a.subject_id.localeCompare(b.subject_id, undefined, { numeric: true }));
   const total = list.reduce(
     (acc, item) => ({
