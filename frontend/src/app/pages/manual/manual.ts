@@ -346,7 +346,37 @@ const PERIODS = [
             <div><strong>เวลา:</strong> วัน{{ detail.dayLabel }} คาบ {{ detail.span.start }}@if (detail.span.span > 1) { –{{ detail.span.start + detail.span.span - 1 }} } ({{ detail.span.span }} คาบ)</div>
             <div><strong>อาจารย์ผู้สอน:</strong> {{ detail.span.teacher_name }}</div>
 
-            @if (auth.isAdmin() && !detail.span.isElectiveCohort) {
+            @if (auth.isAdmin() && detail.span.isElectiveCohort && electiveEditItems().length > 0) {
+              <div class="edit-box">
+                <div style="font-weight: 600; margin-bottom: 8px">แก้ไขห้อง/สนามของรายวิชาทางเลือกในชุดนี้ ({{ electiveEditItems().length }} วิชา)</div>
+                <div style="display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; padding-right: 4px">
+                  @for (el of electiveEditItems(); track el.subject_id) {
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px">
+                      <div style="font-weight: 600; font-size: 12.5px; margin-bottom: 6px">{{ el.subject_id }} {{ el.subject_name }}</div>
+                      <div class="grid-2">
+                        <div class="field">
+                          <label>ห้องหลัก</label>
+                          <select class="input" [(ngModel)]="el.room1">
+                            @for (r of allRooms(); track r['room_id']) {
+                              <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                            }
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label>สนาม / ห้องเสริม</label>
+                          <select class="input" [(ngModel)]="el.room2">
+                            <option value="">— ไม่มี —</option>
+                            @for (r of allRooms(); track r['room_id']) {
+                              <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                            }
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else if (auth.isAdmin() && !detail.span.isElectiveCohort) {
               <div class="edit-box">
                 <div style="font-weight: 600; margin-bottom: 8px">แก้ไขข้อมูลคาบเรียน</div>
                 <div class="grid-2">
@@ -383,7 +413,10 @@ const PERIODS = [
             }
           </div>
           <div class="dialog-foot">
-            @if (auth.isAdmin() && !detail.span.isElectiveCohort) {
+            @if (auth.isAdmin() && detail.span.isElectiveCohort && electiveEditItems().length > 0) {
+              <button class="btn" type="button" (click)="activeSpan.set(null)">ปิด</button>
+              <button class="btn primary" type="button" (click)="saveElectiveEdit()">บันทึกการแก้ไขชุดวิชาทางเลือก</button>
+            } @else if (auth.isAdmin() && !detail.span.isElectiveCohort) {
               <button class="btn danger sm" type="button" (click)="removeSpan(detail.day, detail.span); activeSpan.set(null)">ลบคาบนี้</button>
               <span class="spacer"></span>
               <button class="btn" type="button" (click)="activeSpan.set(null)">ปิด</button>
@@ -502,6 +535,7 @@ export class ManualPage implements OnInit {
   editRoom1 = '';
   editRoom2 = '';
   editGroupId = '';
+  electiveEditItems = signal<{ subject_id: string; subject_name: string; room1: string; room2: string }[]>([]);
 
   currentSeed = computed(() =>
     this.dirty() && this.draftSeed() !== null
@@ -909,7 +943,57 @@ export class ManualPage implements OnInit {
     this.editRoom1 = rParts[0] || '';
     this.editRoom2 = rParts[1] || '';
     this.editGroupId = this.groupId();
+    if (span.isElectiveCohort) {
+      const slotSet = new Set<string>();
+      for (let k = 0; k < span.span; k++) {
+        const ts = this.slotByDayPeriod().get(`${day}|${span.start + k}`);
+        if (ts) slotSet.add(ts);
+      }
+      const seen = new Set<string>();
+      const out: { subject_id: string; subject_name: string; room1: string; room2: string }[] = [];
+      for (const r of this.draftRows()) {
+        if (r.group_id !== span.subject_id || !slotSet.has(r.timeslot_id) || seen.has(r.subject_id)) continue;
+        seen.add(r.subject_id);
+        const rp = String(r.room_id || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
+        out.push({
+          subject_id: r.subject_id,
+          subject_name: this.displaySubName(r.subject_id),
+          room1: rp[0] || '',
+          room2: rp[1] || '',
+        });
+      }
+      this.electiveEditItems.set(out);
+    } else {
+      this.electiveEditItems.set([]);
+    }
     this.activeSpan.set({ day, dayLabel, span });
+  }
+
+  saveElectiveEdit() {
+    const d = this.activeSpan();
+    const items = this.electiveEditItems();
+    if (!d || !items.length) return;
+    const slotSet = new Set<string>();
+    for (let k = 0; k < d.span.span; k++) {
+      const ts = this.slotByDayPeriod().get(`${d.day}|${d.span.start + k}`);
+      if (ts) slotSet.add(ts);
+    }
+    const bySub = new Map(
+      items.map((el) => [el.subject_id, [...new Set([el.room1, el.room2].filter(Boolean))].join('+')])
+    );
+    this.pushUndo();
+    const next = this.draftRows().map((r) => {
+      if (r.group_id === d.span.subject_id && slotSet.has(r.timeslot_id) && bySub.has(r.subject_id)) {
+        const nr = bySub.get(r.subject_id);
+        if (nr) return { ...r, room_id: nr };
+      }
+      return r;
+    });
+    this.draftRows.set(next);
+    this.dirty.set(true);
+    this.activeSpan.set(null);
+    this.validateDraft(true);
+    this.toasts.success('อัปเดตห้อง/สนามของชุดวิชาทางเลือกแล้ว (อย่าลืมกดบันทึกตารางใช้งานจริง)');
   }
 
   saveSpanEdit() {

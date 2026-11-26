@@ -208,7 +208,42 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
             <div><strong>เวลา:</strong> วัน{{ detail.dayLabel }} คาบ {{ detail.span.start }}@if (detail.span.span > 1) { –{{ detail.span.start + detail.span.span - 1 }} } ({{ detail.span.span }} คาบ)</div>
             <div><strong>อาจารย์ผู้สอน:</strong> {{ detail.span.teacher }}</div>
 
-            @if (auth.isAdmin() && selectedId() !== '__all__' && detail.span.room !== '-') {
+            @if (auth.isAdmin() && selectedId() !== '__all__' && electiveEditItems().length > 0) {
+              <div class="edit-box">
+                <div style="font-weight: 600; margin-bottom: 8px">แก้ไขห้อง/สนามของรายวิชาทางเลือกในชุดนี้ ({{ electiveEditItems().length }} วิชา)</div>
+                <div style="display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; padding-right: 4px">
+                  @for (el of electiveEditItems(); track el.subject_id) {
+                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px">
+                      <div style="font-weight: 600; font-size: 12.5px; margin-bottom: 6px">{{ el.subject_id }} {{ el.subject_name }}</div>
+                      <div class="grid-2">
+                        <div class="field">
+                          <label>ห้องหลัก</label>
+                          <select class="input" [(ngModel)]="el.room1">
+                            @for (r of allRooms(); track r['room_id']) {
+                              <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                            }
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label>สนาม / ห้องเสริม</label>
+                          <select class="input" [(ngModel)]="el.room2">
+                            <option value="">— ไม่มี —</option>
+                            @for (r of allRooms(); track r['room_id']) {
+                              <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                            }
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+                <div class="row" style="justify-content: flex-end; margin-top: 10px">
+                  <button class="btn sm primary" type="button" [disabled]="savingEdit()" (click)="saveElectiveEdit()">
+                    {{ savingEdit() ? 'กำลังบันทึก…' : 'บันทึกการแก้ไขชุดวิชาทางเลือก' }}
+                  </button>
+                </div>
+              </div>
+            } @else if (auth.isAdmin() && selectedId() !== '__all__' && detail.span.room !== '-') {
               <div class="edit-box">
                 <div style="font-weight: 600; margin-bottom: 8px">แก้ไขข้อมูลคาบเรียน</div>
                 <div class="grid-2">
@@ -394,6 +429,7 @@ export class TimetablePage implements OnInit {
   editRoom1 = '';
   editRoom2 = '';
   editGroupId = '';
+  electiveEditItems = signal<{ subject_id: string; subject_name: string; room1: string; room2: string }[]>([]);
   undoStack = signal<OutputRow[][]>([]);
   pdfUrl = signal<string | null>(null);
   shareInfo = signal<any>(null);
@@ -568,6 +604,7 @@ export class TimetablePage implements OnInit {
     this.editRoom1 = rParts[0] || '';
     this.editRoom2 = rParts[1] || '';
     this.editGroupId = (ev.span.groups || [])[0] || '';
+    this.electiveEditItems.set(this.buildElectiveEditList(ev.day, ev.span));
     this.moveTargets.set([]);
     if (!this.auth.isAdmin() || this.selectedId() === '__all__') return;
     if (ev.span.subject_id === 'ADVISOR' || ev.span.subject_id === 'ACTIVITY') return;
@@ -583,6 +620,62 @@ export class TimetablePage implements OnInit {
       this.moveTargets.set(res.targets || []);
     } finally {
       this.loadingTargets.set(false);
+    }
+  }
+
+  private buildElectiveEditList(day: string, sp: GridSpan) {
+    if (!['Y2_EL', 'Y3_EL1', 'Y3_EL2'].includes(sp.subject_id)) return [];
+    const data = this.state.data()?.data;
+    const rows = this.state.timetable()?.rows || [];
+    const slots = (data?.['timeslot'] || [])
+      .filter((t: any) => t['day'] === day && Number(t['period']) >= sp.start && Number(t['period']) < sp.start + sp.span)
+      .map((t: any) => t['timeslot_id']);
+    const slotSet = new Set(slots);
+    const subMap = new Map((data?.['subject'] || []).map((s: any) => [s['subject_id'], s['subject_name']]));
+    const seen = new Set<string>();
+    const out: { subject_id: string; subject_name: string; room1: string; room2: string }[] = [];
+    for (const r of rows) {
+      if (r.group_id !== sp.subject_id || !slotSet.has(r.timeslot_id) || seen.has(r.subject_id)) continue;
+      seen.add(r.subject_id);
+      const rp = String(r.room_id || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
+      out.push({
+        subject_id: r.subject_id,
+        subject_name: String(subMap.get(r.subject_id) || r.subject_id),
+        room1: rp[0] || '',
+        room2: rp[1] || '',
+      });
+    }
+    return out;
+  }
+
+  async saveElectiveEdit() {
+    const d = this.activeSpan();
+    const items = this.electiveEditItems();
+    if (!d || !items.length) return;
+    this.savingEdit.set(true);
+    try {
+      const prev = this.state.timetable()?.rows || [];
+      this.undoStack.update((s) => [...s.slice(-9), prev]);
+      const electiveEdits = items.map((el) => ({
+        subject_id: el.subject_id,
+        room_id: [...new Set([el.room1, el.room2].filter(Boolean))].join('+'),
+      }));
+      await this.api.editSpan({
+        view: this.view(),
+        id: this.selectedId(),
+        day: d.day,
+        period: d.span.start,
+        length: d.span.span,
+        electiveEdits,
+      });
+      this.activeSpan.set(null);
+      await this.state.refreshTimetable();
+      await this.loadGrids();
+      this.toasts.success('อัปเดตห้อง/สนามของชุดวิชาทางเลือกแล้ว');
+    } catch (err) {
+      this.toasts.error(this.api.errorMessage(err));
+    } finally {
+      this.savingEdit.set(false);
     }
   }
 

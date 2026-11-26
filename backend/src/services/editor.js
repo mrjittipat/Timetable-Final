@@ -88,11 +88,26 @@ export function moveSpan(rows, ctx, { view, id, fromDay, fromPeriod, length = 1,
   });
 }
 
-export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id }) {
+export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id, electiveEdits }) {
   const len = Math.max(1, Number(length) || 1);
   const slots = resolveWindow(ctx, day, Number(period), len);
   if (!slots) throw httpError(400, 'ช่วงคาบไม่ถูกต้อง');
   const slotSet = new Set(slots);
+
+  // Batch edit for elective cohort subjects (Y2_EL, Y3_EL1, Y3_EL2)
+  if (Array.isArray(electiveEdits) && electiveEdits.length > 0) {
+    const bySub = new Map(electiveEdits.map((e) => [e.subject_id, e]));
+    return rows.map((r) => {
+      if (!slotSet.has(r.timeslot_id)) return { ...r };
+      const ed = bySub.get(r.subject_id);
+      if (!ed) return { ...r };
+      return {
+        ...r,
+        room_id: ed.room_id != null && ed.room_id !== '' ? String(ed.room_id).trim() : r.room_id,
+        teacher_id: ed.teacher_id != null && ed.teacher_id !== '' ? String(ed.teacher_id).trim() : r.teacher_id,
+      };
+    });
+  }
 
   const seed = rows.filter((r) => slotSet.has(r.timeslot_id) && rowMatchesEntity(r, view, id));
   if (seed.length === 0) throw httpError(404, 'ไม่พบคาบที่ต้องการแก้ไข');
