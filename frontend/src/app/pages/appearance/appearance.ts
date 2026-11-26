@@ -542,6 +542,26 @@ const FOCUS_LABELS: Record<string, string> = {
                     </div>
                   </div>
                   <div class="grid-2">
+                    <div class="field">
+                      <label>พื้นหลังพื้นที่ว่างด้านข้าง (เมื่อใช้แบบพอดีกรอบ)</label>
+                      <div class="segmented">
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.carouselBgMode || 'blur') === 'blur'" (click)="patchPublic({ carouselBgMode: 'blur' })">เบลอภาพเดิม</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselBgMode === 'gradient'" (click)="patchPublic({ carouselBgMode: 'gradient' })">ไล่เฉดธีม</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselBgMode === 'dark'" (click)="patchPublic({ carouselBgMode: 'dark' })">สีเข้ม</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselBgMode === 'solid'" (click)="patchPublic({ carouselBgMode: 'solid' })">เลือกสีเอง</button>
+                      </div>
+                    </div>
+                    @if (draft().public.carouselBgMode === 'solid') {
+                      <div class="field">
+                        <label>สีพื้นหลังกรอบสไลด์</label>
+                        <div class="color-row">
+                          <input type="color" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.carouselBgColor || '#1a1a2e'" (ngModelChange)="patchPublic({ carouselBgColor: $event })" />
+                          <input class="input mono" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.carouselBgColor || '#1a1a2e'" (ngModelChange)="patchPublic({ carouselBgColor: $event })" />
+                        </div>
+                      </div>
+                    }
+                  </div>
+                  <div class="grid-2">
                     <label class="toggle-box" [class.on]="draft().public.carouselAutoplay">
                       <div class="toggle-box-text"><span class="toggle-box-title">เลื่อนสไลด์อัตโนมัติ</span></div>
                       <div class="toggle-box-right">
@@ -985,12 +1005,17 @@ const FOCUS_LABELS: Record<string, string> = {
                     <div class="hl-zone" [class.hl-on]="isHl('pubCarousel')"
                          [style.border-radius]="carouselPreviewRadius()"
                          [style.height]="carouselPreviewHeight()"
-                         style="overflow: hidden; position: relative; background: var(--maroon-50)">
+                         [style.background]="carouselPreviewBg()"
+                         style="overflow: hidden; position: relative">
+                      @if ((draft().public.carouselBgMode || 'blur') === 'blur') {
+                        <img [src]="draft().public.carouselSlides[0].imageDataUrl" alt="" aria-hidden="true"
+                             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(14px) brightness(0.75); transform: scale(1.15); pointer-events: none" />
+                      }
                       <img [src]="draft().public.carouselSlides[0].imageDataUrl" alt="slide"
                            [style.object-fit]="draft().public.carouselFit || 'cover'"
                            [style.object-position]="draft().public.carouselPosition || 'center'"
                            [style.height]="draft().public.carouselHeight === 'auto' ? 'auto' : '100%'"
-                           style="width: 100%; display: block" />
+                           style="position: relative; z-index: 1; width: 100%; display: block" />
                     </div>
                   }
                   <div class="hl-zone" [class.hl-on]="isHl('pubCards')" [style.grid-template-columns]="'repeat(' + draft().public.cardColumns + ', 1fr)'" style="display: grid; gap: 6px">
@@ -1374,6 +1399,15 @@ export class AppearancePage implements OnInit, OnDestroy {
     if (r === 'sm') return '5px';
     if (r === 'lg') return '16px';
     return '10px';
+  }
+
+  carouselPreviewBg() {
+    const d = this.draft();
+    const m = d.public.carouselBgMode || 'blur';
+    if (m === 'gradient') return `linear-gradient(135deg, ${d.primaryColor}, #1e0008)`;
+    if (m === 'dark') return '#141418';
+    if (m === 'solid') return d.public.carouselBgColor || '#1a1a2e';
+    return '#141418';
   }
 
   previewShadow() {

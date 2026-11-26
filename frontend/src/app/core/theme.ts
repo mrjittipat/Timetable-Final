@@ -50,6 +50,8 @@ export interface PublicAppearance {
   carouselFit: 'cover' | 'contain' | 'fill';
   carouselPosition: 'center' | 'top' | 'bottom';
   carouselRadius: 'none' | 'sm' | 'md' | 'lg';
+  carouselBgMode: 'blur' | 'gradient' | 'dark' | 'solid';
+  carouselBgColor: string;
   carouselSlides: PublicCarouselSlide[];
   cardColumns: 2 | 3 | 4;
   showFooter: boolean;
@@ -150,6 +152,8 @@ export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {
   carouselFit: 'cover',
   carouselPosition: 'center',
   carouselRadius: 'md',
+  carouselBgMode: 'blur',
+  carouselBgColor: '#1a1a2e',
   carouselSlides: [],
   cardColumns: 3,
   showFooter: true,

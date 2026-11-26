@@ -119,6 +119,8 @@ export const DEFAULT_CONFIG = {
       carouselFit: 'cover',
       carouselPosition: 'center',
       carouselRadius: 'md',
+      carouselBgMode: 'blur',
+      carouselBgColor: '#1a1a2e',
       carouselSlides: [],
       cardColumns: 3,
       showFooter: true,

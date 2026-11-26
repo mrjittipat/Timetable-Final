@@ -49,8 +49,12 @@ import { IconComponent } from '../../shared/icon';
         @if (pub().carouselEnabled && slides().length > 0) {
           <section class="carousel-box"
                    [style.border-radius]="carouselRadius()"
-                   [style.height]="carouselHeight()">
+                   [style.height]="carouselHeight()"
+                   [style.background]="carouselBg()">
             @if (activeSlide(); as sl) {
+              @if ((pub().carouselBgMode || 'blur') === 'blur') {
+                <img [src]="sl.imageDataUrl" alt="" aria-hidden="true" class="carousel-blur-bg" />
+              }
               <img [src]="sl.imageDataUrl"
                    [alt]="sl.title || 'ประชาสัมพันธ์'"
                    class="carousel-img"
@@ -152,18 +156,23 @@ import { IconComponent } from '../../shared/icon';
 
     .carousel-box {
       position: relative; width: 100%; overflow: hidden;
-      background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+      background: #141418; border: 1px solid var(--border); box-shadow: var(--shadow-sm);
     }
-    .carousel-img { width: 100%; display: block; }
+    .carousel-blur-bg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; filter: blur(22px) brightness(0.72);
+      transform: scale(1.14); pointer-events: none;
+    }
+    .carousel-img { position: relative; z-index: 1; width: 100%; display: block; }
     .carousel-caption {
-      position: absolute; left: 0; right: 0; bottom: 0;
+      position: absolute; z-index: 2; left: 0; right: 0; bottom: 0;
       padding: 16px 20px; background: linear-gradient(180deg, transparent, rgba(0,0,0,0.68));
       color: #fff;
     }
     .cc-title { font-weight: 700; font-size: 16px; }
     .cc-sub { font-size: 13px; opacity: 0.9; margin-top: 2px; }
     .car-nav {
-      position: absolute; top: 50%; transform: translateY(-50%);
+      position: absolute; z-index: 3; top: 50%; transform: translateY(-50%);
       width: 38px; height: 38px; border-radius: 50%; border: none;
       background: rgba(0,0,0,0.45); color: #fff; font-size: 24px; line-height: 1;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -172,7 +181,7 @@ import { IconComponent } from '../../shared/icon';
     .car-nav.prev { left: 12px; }
     .car-nav.next { right: 12px; }
     .car-dots {
-      position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+      position: absolute; z-index: 3; left: 50%; bottom: 10px; transform: translateX(-50%);
       display: flex; gap: 6px; padding: 4px 8px; border-radius: 999px; background: rgba(0,0,0,0.35);
     }
     .car-dot {
@@ -268,6 +277,15 @@ export class PublicIndexPage implements OnInit, OnDestroy {
     if (r === 'sm') return '8px';
     if (r === 'lg') return '24px';
     return '14px';
+  }
+
+  carouselBg() {
+    const p = this.pub();
+    const m = p.carouselBgMode || 'blur';
+    if (m === 'gradient') return 'linear-gradient(135deg, var(--maroon-700), var(--maroon-950))';
+    if (m === 'dark') return '#141418';
+    if (m === 'solid') return p.carouselBgColor || '#1a1a2e';
+    return '#141418';
   }
 
   stepSlide(delta: number) {
