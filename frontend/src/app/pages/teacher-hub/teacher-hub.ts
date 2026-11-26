@@ -626,7 +626,10 @@ export class TeacherHubPage implements OnInit {
       return;
     }
     ev.dataTransfer?.setData('text/plain', `${day}|${span.start}`);
-    this.selectSpan(day, dayLabel, dayIdx, span);
+    const cur = this.selected();
+    if (!cur || cur.day !== day || cur.span.start !== span.start) {
+      this.selectSpan(day, dayLabel, dayIdx, span);
+    }
   }
 
   onDragOver(ev: DragEvent, _day: string, _period: number) {
