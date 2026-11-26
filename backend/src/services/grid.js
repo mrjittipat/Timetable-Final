@@ -57,6 +57,8 @@ export function entitiesFor(view, ctx) {
   if (view === 'teacher') {
     return [...ctx.teachers.values()].map((t) => ({
       id: t.teacher_id,
+      role: t.role,
+      isLeader: t.role === 'Leader',
       title: `${t.teacher_name} (${t.teacher_id})`,
       subtitle:
         t.role === 'Leader'

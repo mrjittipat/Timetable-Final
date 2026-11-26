@@ -144,6 +144,8 @@ export interface SolveResponse {
 
 export interface EntityRef {
   id: string;
+  role?: string;
+  isLeader?: boolean;
   title: string;
   subtitle: string;
   heading: string;

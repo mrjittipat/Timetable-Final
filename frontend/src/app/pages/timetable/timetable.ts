@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, HostListener, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Api } from '../../core/api';
@@ -43,7 +43,7 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" style="overflow: visible">
         <div class="card-body" style="display: flex; flex-direction: column; gap: 12px">
           <div class="row">
             <div class="segmented">
@@ -52,14 +52,65 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
               <button type="button" [class.active]="view() === 'room'" (click)="switchView('room')">ห้อง / สนาม</button>
             </div>
 
-            <div class="row" style="flex: 1; min-width: 240px">
+            <!-- Searchable Entity Combobox -->
+            <div class="row" style="flex: 1; min-width: 260px; flex-wrap: nowrap">
               <button class="btn icon sm" type="button" (click)="stepEntity(-1)" aria-label="ก่อนหน้า">‹</button>
-              <select class="input" style="flex: 1" [ngModel]="selectedId()" (ngModelChange)="selectEntity($event)">
-                <option value="__all__">— แสดงทั้งหมด ({{ allLabel() }}) —</option>
-                @for (e of currentEntities(); track e.id) {
-                  <option [value]="e.id">{{ e.title }}</option>
+              <div class="combo" (click)="$event.stopPropagation()">
+                <button type="button" class="combo-trigger" [class.exec-selected]="selectedEntity()?.isLeader" (click)="toggleDropdown()">
+                  <span class="combo-label">
+                    @if (selectedId() === '__all__') {
+                      — แสดงทั้งหมด ({{ allLabel() }}) —
+                    } @else if (selectedEntity(); as sel) {
+                      <span>{{ sel.title }}</span>
+                      @if (sel.isLeader) {
+                        <span class="exec-pill">ผู้บริหาร</span>
+                      }
+                    } @else {
+                      เลือก{{ allLabel() }}
+                    }
+                  </span>
+                  <app-icon name="chevron" [size]="16" [style.transform]="dropdownOpen() ? 'rotate(180deg)' : ''" />
+                </button>
+
+                @if (dropdownOpen()) {
+                  <div class="combo-menu">
+                    <div class="combo-search">
+                      <app-icon name="search" [size]="15" />
+                      <input type="text"
+                             [ngModel]="entityQuery()"
+                             (ngModelChange)="entityQuery.set($event)"
+                             [placeholder]="'พิมพ์ค้นหา' + viewLabel() + (view() === 'teacher' ? ' หรือพิมพ์ ผู้บริหาร…' : '…')"
+                             autofocus />
+                      @if (entityQuery()) {
+                        <button type="button" class="combo-clear" (click)="entityQuery.set('')" aria-label="ล้างคำค้น">×</button>
+                      }
+                    </div>
+                    <div class="combo-list">
+                      @if (!entityQuery().trim()) {
+                        <button type="button" class="combo-opt" [class.active]="selectedId() === '__all__'" (click)="pickEntity('__all__')">
+                          <span>— แสดงทั้งหมด ({{ allLabel() }}) —</span>
+                        </button>
+                      }
+                      @for (e of filteredEntities(); track e.id) {
+                        <button type="button" class="combo-opt"
+                                [class.active]="selectedId() === e.id"
+                                [class.exec-opt]="e.isLeader"
+                                (click)="pickEntity(e.id)">
+                          <div class="opt-main">
+                            <span class="opt-title">{{ e.title }}</span>
+                            @if (e.isLeader) {
+                              <span class="exec-pill">ผู้บริหาร</span>
+                            }
+                          </div>
+                          <div class="opt-sub">{{ e.subtitle }}</div>
+                        </button>
+                      } @empty {
+                        <div class="combo-empty">ไม่พบรายการที่ตรงกับ "{{ entityQuery() }}"</div>
+                      }
+                    </div>
+                  </div>
                 }
-              </select>
+              </div>
               <button class="btn icon sm" type="button" (click)="stepEntity(1)" aria-label="ถัดไป">›</button>
             </div>
 
@@ -71,7 +122,12 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
           </div>
 
           <div class="row">
-            <input class="input" style="max-width: 320px" [(ngModel)]="search" placeholder="ค้นหา/ไฮไลต์ วิชา อาจารย์ ห้อง สนาม…" />
+            <input class="input" style="max-width: 320px" [(ngModel)]="search" placeholder="ค้นหา/ไฮไลต์ วิชา อาจารย์ ห้อง สนาม ในตาราง…" />
+            @if (view() === 'teacher') {
+              <button type="button" class="btn sm" [class.primary]="onlyExec()" (click)="onlyExec.update(v => !v)">
+                ★ เฉพาะอาจารย์ฝ่ายบริหาร (7 คน)
+              </button>
+            }
             <span class="spacer"></span>
             <div class="segmented">
               <button type="button" [class.active]="displayMode() === 'auto'" (click)="displayMode.set('auto')">อัตโนมัติ</button>
@@ -91,30 +147,44 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
           </div>
         </div>
       } @else if (selectedId() === '__all__') {
-        @for (g of allGrids(); track g.entity?.id) {
-          <div class="card">
-            <div class="card-head">
+        @for (g of visibleAllGrids(); track g.entity?.id) {
+          <div class="card" [class.exec-card]="g.entity?.isLeader">
+            <div class="card-head" [class.exec-head]="g.entity?.isLeader">
               <div>
-                <h3>{{ g.entity?.title }}</h3>
+                <div class="row" style="gap: 8px">
+                  <h3>{{ g.entity?.title }}</h3>
+                  @if (g.entity?.isLeader) {
+                    <span class="exec-pill">ผู้บริหาร · ประชุมอังคาร คาบ 1–4</span>
+                  }
+                </div>
                 <div class="small muted">{{ g.entity?.subtitle }} · รวม {{ g.total }} คาบ/สัปดาห์</div>
               </div>
               <button class="btn sm" type="button" (click)="pdfUrl.set(api.exportUrl('pdf', view(), g.entity?.id || '', true))">PDF</button>
             </div>
             <div class="card-body">
-              <app-timetable-sheet [grid]="g" [view]="view()" [displayMode]="displayMode()" [search]="search" (spanClick)="onSpanClick($event)" />
+              <app-timetable-sheet [grid]="g" [view]="view()" [displayMode]="displayMode()" [search]="search"
+                                   [highlightExecMeeting]="view() === 'teacher' && !!g.entity?.isLeader"
+                                   (spanClick)="onSpanClick($event)" />
             </div>
           </div>
         }
       } @else if (singleGrid(); as g) {
-        <div class="card">
-          <div class="card-head">
+        <div class="card" [class.exec-card]="g.entity?.isLeader">
+          <div class="card-head" [class.exec-head]="g.entity?.isLeader">
             <div>
-              <h3>{{ g.entity?.title }}</h3>
+              <div class="row" style="gap: 8px">
+                <h3>{{ g.entity?.title }}</h3>
+                @if (g.entity?.isLeader) {
+                  <span class="exec-pill">ผู้บริหาร · ประชุมอังคาร คาบ 1–4</span>
+                }
+              </div>
               <div class="small muted">{{ g.entity?.subtitle }} · รวม {{ g.total }} คาบ/สัปดาห์</div>
             </div>
           </div>
           <div class="card-body">
-            <app-timetable-sheet [grid]="g" [view]="view()" [displayMode]="displayMode()" [search]="search" (spanClick)="onSpanClick($event)" />
+            <app-timetable-sheet [grid]="g" [view]="view()" [displayMode]="displayMode()" [search]="search"
+                                 [highlightExecMeeting]="view() === 'teacher' && !!g.entity?.isLeader"
+                                 (spanClick)="onSpanClick($event)" />
           </div>
         </div>
       }
@@ -192,6 +262,54 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
     <app-pdf-preview [url]="pdfUrl()" (closed)="pdfUrl.set(null)" />
   `,
   styles: `
+    .combo { position: relative; flex: 1; min-width: 0; }
+    .combo-trigger {
+      width: 100%; min-height: 38px; padding: 6px 12px; border-radius: var(--radius);
+      border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+      font: inherit; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      text-align: left;
+    }
+    .combo-trigger:hover { border-color: var(--maroon-700); }
+    .combo-trigger.exec-selected { background: #fffbeb; border-color: #d97706; }
+    .combo-label { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .combo-menu {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 300;
+      background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px;
+      box-shadow: var(--shadow-lg); overflow: hidden;
+    }
+    .combo-search {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      border-bottom: 1px solid var(--border); background: var(--maroon-50); color: var(--text-muted);
+    }
+    .combo-search input {
+      flex: 1; border: none; background: transparent; outline: none; font: inherit; font-size: 13.5px; color: var(--text);
+    }
+    .combo-clear {
+      border: none; background: transparent; font-size: 18px; line-height: 1; cursor: pointer; color: var(--text-muted); padding: 0 4px;
+    }
+    .combo-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; }
+    .combo-opt {
+      width: 100%; text-align: left; border: none; border-bottom: 1px solid var(--border);
+      background: var(--surface); padding: 9px 12px; cursor: pointer; font: inherit;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .combo-opt:last-child { border-bottom: none; }
+    .combo-opt:hover { background: var(--maroon-50); }
+    .combo-opt.exec-opt { background: #fffbeb; border-left: 3px solid #d97706; }
+    .combo-opt.exec-opt:hover { background: #fef3c7; }
+    .combo-opt.active { background: var(--maroon-100); font-weight: 600; }
+    .opt-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .opt-title { font-size: 13.5px; color: var(--text); }
+    .opt-sub { font-size: 11.5px; color: var(--text-muted); }
+    .combo-empty { padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+    .exec-pill {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+      background: #fef3c7; color: #92400e; border: 1px solid #f59e0b;
+      font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0;
+    }
+    .exec-card { border-color: #f59e0b; }
+    .exec-head { background: linear-gradient(90deg, #fffbeb 0%, #ffffff 70%); }
     .move-box { margin-top: 10px; padding: 12px; background: var(--maroon-50); border: 1px solid var(--border); border-radius: 10px; }
   `,
 })
@@ -212,6 +330,10 @@ export class TimetablePage implements OnInit {
   displayMode = signal<'auto' | 'table' | 'cards'>('auto');
   search = '';
 
+  dropdownOpen = signal(false);
+  entityQuery = signal('');
+  onlyExec = signal(false);
+
   activeSpan = signal<{ day: string; dayLabel: string; span: GridSpan } | null>(null);
   moveTargets = signal<any[]>([]);
   loadingTargets = signal(false);
@@ -219,7 +341,36 @@ export class TimetablePage implements OnInit {
   pdfUrl = signal<string | null>(null);
   shareInfo = signal<any>(null);
 
-  currentEntities = computed(() => this.entities()[this.view()] || []);
+  currentEntities = computed(() => {
+    const list = this.entities()[this.view()] || [];
+    if (this.view() === 'teacher' && this.onlyExec()) {
+      return list.filter((e) => e.isLeader);
+    }
+    return list;
+  });
+
+  filteredEntities = computed(() => {
+    const list = this.currentEntities();
+    const q = this.entityQuery().trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((e) =>
+      `${e.id} ${e.title} ${e.subtitle} ${e.isLeader ? 'ผู้บริหาร leader' : ''}`.toLowerCase().includes(q)
+    );
+  });
+
+  selectedEntity = computed(() =>
+    (this.entities()[this.view()] || []).find((e) => e.id === this.selectedId()) || null
+  );
+
+  visibleAllGrids = computed(() => {
+    const list = this.allGrids();
+    if (this.view() === 'teacher' && this.onlyExec()) {
+      return list.filter((g) => g.entity?.isLeader);
+    }
+    return list;
+  });
+
+  viewLabel = computed(() => (this.view() === 'group' ? 'กลุ่มเรียน' : this.view() === 'teacher' ? 'อาจารย์ผู้สอน' : 'ห้อง/สนาม'));
   allLabel = computed(() => (this.view() === 'group' ? 'ทุกกลุ่มเรียน' : this.view() === 'teacher' ? 'อาจารย์ทุกคน' : 'ทุกห้อง/สนาม'));
   excelUrl = computed(() => this.api.exportUrl('xlsx', this.view(), this.selectedId() === '__all__' ? '' : this.selectedId()));
 
@@ -228,6 +379,16 @@ export class TimetablePage implements OnInit {
       this.state.version();
       if (this.selectedId()) this.loadGrids();
     });
+  }
+
+  @HostListener('document:click')
+  onDocClick() {
+    if (this.dropdownOpen()) this.dropdownOpen.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  onEsc() {
+    if (this.dropdownOpen()) this.dropdownOpen.set(false);
   }
 
   async ngOnInit() {
@@ -240,8 +401,22 @@ export class TimetablePage implements OnInit {
     await this.loadGrids();
   }
 
+  toggleDropdown() {
+    this.dropdownOpen.update((v) => !v);
+    if (this.dropdownOpen()) this.entityQuery.set('');
+  }
+
+  async pickEntity(id: string) {
+    this.dropdownOpen.set(false);
+    this.entityQuery.set('');
+    await this.selectEntity(id);
+  }
+
   async switchView(v: View) {
     this.view.set(v);
+    this.onlyExec.set(false);
+    this.dropdownOpen.set(false);
+    this.entityQuery.set('');
     const list = this.entities()[v] || [];
     this.selectedId.set(list[0]?.id || '__all__');
     await this.loadGrids();

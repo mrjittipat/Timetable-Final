@@ -75,6 +75,8 @@ import { Grid, GridSpan, View } from '../core/models';
                           }
                         </button>
                       </td>
+                    } @else if (isExecMeetingCell(d.key, cell.period)) {
+                      <td class="exec-cell" title="เวลาประชุมอาจารย์ฝ่ายบริหาร (อังคาร คาบ 1–4)">ประชุมผู้บริหาร</td>
                     } @else {
                       <td class="empty-td"></td>
                     }
@@ -98,6 +100,10 @@ import { Grid, GridSpan, View } from '../core/models';
     .p-time { font-size: 10.5px; opacity: 0.88; font-weight: 400; }
     .day-cell { background: var(--maroon-50); font-weight: 600; color: var(--maroon-900); padding: 8px 4px; height: 74px; }
     .break-cell { background: #f6f1f2; color: var(--text-muted); font-weight: 600; font-size: 12.5px; }
+    .exec-cell {
+      background: repeating-linear-gradient(45deg, #fff8e6, #fff8e6 6px, #fef0c7 6px, #fef0c7 12px);
+      color: #9a5b00; font-weight: 600; font-size: 11px; height: 74px;
+    }
     .empty-td { background: var(--surface); height: 74px; }
     .span-td { padding: 0; height: 74px; }
     .span-btn {
@@ -141,6 +147,7 @@ export class TimetableSheetComponent {
   view = input<View>('group');
   displayMode = input<'auto' | 'table' | 'cards'>('auto');
   search = input<string>('');
+  highlightExecMeeting = input<boolean>(false);
   spanClick = output<{ day: string; dayLabel: string; span: GridSpan }>();
 
   winWidth = signal(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -172,6 +179,10 @@ export class TimetableSheetComponent {
     return `${(sp.group_labels || sp.groups).join('+')} · ${sp.teacher}`;
   }
 
+  isExecMeetingCell(dayKey: string, period?: number): boolean {
+    return this.highlightExecMeeting() && dayKey === 'Tue' && period != null && period >= 1 && period <= 4;
+  }
+
   rowCells(g: Grid, dayIdx: number) {
     const map = new Map<number, GridSpan>();
     const covered = new Set<number>();
@@ -179,11 +190,11 @@ export class TimetableSheetComponent {
       map.set(sp.start, sp);
       for (let k = 0; k < sp.span; k++) covered.add(sp.start + k);
     }
-    const out: { isBreak?: boolean; span?: GridSpan }[] = [];
+    const out: { period: number; isBreak?: boolean; span?: GridSpan }[] = [];
     for (const p of g.periods) {
-      if (p.isBreak) out.push({ isBreak: true });
-      else if (map.has(p.period)) out.push({ span: map.get(p.period) });
-      else if (!covered.has(p.period)) out.push({});
+      if (p.isBreak) out.push({ period: p.period, isBreak: true });
+      else if (map.has(p.period)) out.push({ period: p.period, span: map.get(p.period) });
+      else if (!covered.has(p.period)) out.push({ period: p.period });
     }
     return out;
   }
