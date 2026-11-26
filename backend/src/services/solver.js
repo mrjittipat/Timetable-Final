@@ -439,6 +439,12 @@ class Board {
     for (const s of opt.slots) {
       if (this.ctx.slotsById.get(s).period > lp) sc += 3;
     }
+    if (this.ctx.params.packEarlyPeriods && opt.slots.length > 0) {
+      const bp = this.ctx.params.breakPeriod || 5;
+      const firstP = this.ctx.slotsById.get(opt.slots[0]).period;
+      const halfStart = firstP < bp ? 1 : bp + 1;
+      sc += (firstP - halfStart) * 5 + firstP * 0.6;
+    }
     for (const g of b.course.groups) {
       sc += this.getDayLoad(g, opt.day) * 0.3;
       sc += this.wasteAfter(g, b, opt) * 4;
@@ -500,6 +506,8 @@ class Board {
   groupCost(g) {
     const ctx = this.ctx;
     const lp = ctx.params.latestPreferredPeriod || 9;
+    const packEarly = Boolean(ctx.params.packEarlyPeriods);
+    const bp = ctx.params.breakPeriod || 5;
     let cost = 0;
     const loads = [];
     for (let d = 0; d < ctx.days.length; d++) {
@@ -507,16 +515,28 @@ class Board {
       let first = -1;
       let last = -1;
       let n = 0;
+      let firstMorningP = null;
+      let firstAfternoonP = null;
       for (let i = 0; i < slots.length; i++) {
         const s = slots[i];
         if (this.group.has(`${g}|${s}`)) {
           if (first === -1) first = i;
           last = i;
           n++;
-          if (ctx.slotsById.get(s).period > lp) cost += 3;
+          const period = ctx.slotsById.get(s).period;
+          if (period > lp) cost += 3;
+          if (packEarly) {
+            cost += period * 0.4;
+            if (period < bp && firstMorningP === null) firstMorningP = period;
+            if (period > bp && firstAfternoonP === null) firstAfternoonP = period;
+          }
         }
       }
       if (n > 0) cost += (last - first + 1 - n) * 2;
+      if (packEarly) {
+        if (firstMorningP !== null && firstMorningP > 1) cost += (firstMorningP - 1) * 6;
+        if (firstAfternoonP !== null && firstAfternoonP > bp + 1) cost += (firstAfternoonP - (bp + 1)) * 4;
+      }
       loads.push(n);
     }
     const avg = loads.reduce((a, b) => a + b, 0) / Math.max(1, loads.length);

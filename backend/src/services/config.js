@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG = {
     wedFixed: { day: 'Wed', advisorPeriod: 8, activityPeriod: 9 },
     maxBlock: 4,
     latestPreferredPeriod: 9,
+    packEarlyPeriods: false,
     timeLimitSec: 20,
     seed: 42,
   },

@@ -147,6 +147,17 @@ const BASICS = [
                   <label>คาบสูงสุดต่อวัน</label>
                   <input class="input" type="number" min="4" max="9" [disabled]="!auth.isAdmin()" [(ngModel)]="c.params['maxPeriodsPerDay']" />
                 </div>
+                <label class="sp-row" style="grid-column: 1 / -1; margin-top: 2px" [class.on]="c.params['packEarlyPeriods']">
+                  <span class="no-tile" style="font-size: 11px">★</span>
+                  <div style="flex: 1">
+                    <div style="font-weight: 600">ฟังก์ชันพิเศษ: จัดชิดคาบแรกก่อน (เริ่มตั้งแต่คาบ 1)</div>
+                    <div class="small muted">พยายามวางคาบเรียนให้เต็มตั้งแต่คาบ 1 (ช่วงเช้า) และคาบ 6 (หลังพักเที่ยง) ก่อน โดยไม่กระทบเงื่อนไขใด ๆ</div>
+                  </div>
+                  <span class="switch">
+                    <input type="checkbox" [disabled]="!auth.isAdmin()" [(ngModel)]="c.params['packEarlyPeriods']" (ngModelChange)="persistConfig()" />
+                    <span></span>
+                  </span>
+                </label>
               </div>
             </div>
 
