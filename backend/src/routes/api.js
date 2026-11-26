@@ -295,6 +295,43 @@ router.get('/data', (_req, res) => {
   });
 });
 
+const EXPORT_FOLDERS = [
+  ['teacher', '01_teacher'],
+  ['room', '02_room'],
+  ['student_group', '03_student_group'],
+  ['subject', '04_subject'],
+  ['teach', '05_teach'],
+  ['timeslot', '06_timeslot'],
+  ['register', '07_register'],
+];
+
+router.get('/data/export-all', (_req, res) => {
+  const data = store.getData();
+  const entries = EXPORT_FOLDERS.map(([entity, folder]) => {
+    const def = ENTITIES[entity];
+    const csvText = '\uFEFF' + toCsv(data[entity] || [], def.fields);
+    return {
+      name: `timetable-data/${folder}/${def.file}`,
+      data: Buffer.from(csvText, 'utf8'),
+    };
+  });
+  const zipBuf = buildZip(entries);
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="timetable-data.zip"');
+  res.send(zipBuf);
+});
+
+router.get('/data/:entity/export', wrap((req, res) => {
+  const entity = req.params.entity;
+  const def = ENTITIES[entity];
+  if (!def) throw store.httpError(404, `ไม่พบตาราง ${entity}`);
+  const rows = store.getEntity(entity);
+  const csvText = '\uFEFF' + toCsv(rows, def.fields);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${def.file}"`);
+  res.send(csvText);
+}));
+
 router.get('/data/:entity', wrap((req, res) => {
   res.json({ rows: store.getEntity(req.params.entity) });
 }));
@@ -395,46 +432,9 @@ router.post('/data/auto-advisors', wrap((_req, res) => {
   res.json({ ok: true, assigned, groups: updatedGroups });
 }));
 
-const EXPORT_FOLDERS = [
-  ['teacher', '01_teacher'],
-  ['room', '02_room'],
-  ['student_group', '03_student_group'],
-  ['subject', '04_subject'],
-  ['teach', '05_teach'],
-  ['timeslot', '06_timeslot'],
-  ['register', '07_register'],
-];
-
-router.get('/data/export-all', (_req, res) => {
-  const data = store.getData();
-  const entries = EXPORT_FOLDERS.map(([entity, folder]) => {
-    const def = ENTITIES[entity];
-    const csvText = '\uFEFF' + toCsv(data[entity] || [], def.fields);
-    return {
-      name: `timetable-data/${folder}/${def.file}`,
-      data: Buffer.from(csvText, 'utf8'),
-    };
-  });
-  const zipBuf = buildZip(entries);
-  res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', 'attachment; filename="timetable-data.zip"');
-  res.send(zipBuf);
-});
-
 router.post('/data/clear-all', auth.requireAdmin, wrap((_req, res) => {
   store.clearAllData();
   res.json({ ok: true });
-}));
-
-router.get('/data/:entity/export', wrap((req, res) => {
-  const entity = req.params.entity;
-  const def = ENTITIES[entity];
-  if (!def) throw store.httpError(404, `ไม่พบตาราง ${entity}`);
-  const rows = store.getEntity(entity);
-  const csvText = '\uFEFF' + toCsv(rows, def.fields);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${def.file}"`);
-  res.send(csvText);
 }));
 
 router.delete('/data/:entity', auth.requireAdmin, wrap((req, res) => {
