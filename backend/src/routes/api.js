@@ -377,12 +377,12 @@ router.post('/data/auto-advisors', wrap((_req, res) => {
 
   store.replaceEntity('student_group', updatedGroups);
 
-  // Sync ADVISOR rows in existing timetable if one is present
+  // Sync ADVISOR and ACTIVITY rows in existing timetable if one is present
   const tt = store.getTimetable();
   if (tt && tt.rows && tt.rows.length > 0) {
     const advisorIdByGroup = new Map(assigned.map((a) => [a.group_id, a.teacher_id]));
     const nextRows = tt.rows.map((r) =>
-      r.subject_id === 'ADVISOR' && advisorIdByGroup.has(r.group_id)
+      (r.subject_id === 'ADVISOR' || r.subject_id === 'ACTIVITY') && advisorIdByGroup.has(r.group_id)
         ? { ...r, teacher_id: advisorIdByGroup.get(r.group_id) }
         : r
     );
