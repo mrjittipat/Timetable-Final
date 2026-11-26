@@ -876,7 +876,7 @@ router.get('/teacher/my-groups', (req, res) => {
   res.json({ teacher, totalPeriods: totalSlots, subjectsCount: subjectsTaught.length, responsibleGroups });
 });
 
-function evaluateTeacherRequest(item, tt, data, cfg, ctx) {
+function evaluateTeacherRequest(item, tt, data, cfg, ctx, includePreview = false) {
   if (!item || item.status !== 'pending') return null;
   if (!tt || !tt.rows || tt.rows.length === 0) {
     return { feasible: false, reasons: ['ยังไม่มีตารางเรียนในระบบ'] };
@@ -886,7 +886,13 @@ function evaluateTeacherRequest(item, tt, data, cfg, ctx) {
       ? editSpan(tt.rows, ctx, { view: 'teacher', id: item.teacher_id, day: item.fromDay, period: item.fromPeriod, length: item.length, room_id: item.room_id })
       : moveSpan(tt.rows, ctx, { view: 'teacher', id: item.teacher_id, fromDay: item.fromDay, fromPeriod: item.fromPeriod, length: item.length, toDay: item.toDay, toPeriod: item.toPeriod });
     const val = validate(nextRows, data, cfg, ctx);
-    if (val.passed) return { feasible: true, reasons: [] };
+    const previewGrid = includePreview
+      ? {
+          entity: entitiesFor('teacher', ctx).find((e) => e.id === item.teacher_id) || null,
+          ...buildGrid('teacher', item.teacher_id, nextRows, ctx),
+        }
+      : undefined;
+    if (val.passed) return { feasible: true, reasons: [], ...(previewGrid ? { previewGrid } : {}) };
     const reasons = [];
     for (const ch of val.checks || []) {
       if (!ch.passed) {
@@ -895,7 +901,11 @@ function evaluateTeacherRequest(item, tt, data, cfg, ctx) {
         if (reasons.length >= 4) break;
       }
     }
-    return { feasible: false, reasons: reasons.length ? reasons : ['ขัดต่อเงื่อนไขการจัดตาราง'] };
+    return {
+      feasible: false,
+      reasons: reasons.length ? reasons : ['ขัดต่อเงื่อนไขการจัดตาราง'],
+      ...(previewGrid ? { previewGrid } : {}),
+    };
   } catch (err) {
     return { feasible: false, reasons: [err.message || 'ไม่สามารถย้ายไปยังช่วงเวลานี้ได้'] };
   }
@@ -925,8 +935,14 @@ router.post('/teacher/requests/check', wrap((req, res) => {
     teacher_id: req.body.teacher_id || req.user.teacher_id,
     status: 'pending',
   };
-  const check = evaluateTeacherRequest(item, tt, data, cfg, ctx);
-  res.json({ ok: Boolean(check?.feasible), feasible: Boolean(check?.feasible), reasons: check?.reasons || [], message: check?.reasons?.[0] || '' });
+  const check = evaluateTeacherRequest(item, tt, data, cfg, ctx, true);
+  res.json({
+    ok: Boolean(check?.feasible),
+    feasible: Boolean(check?.feasible),
+    reasons: check?.reasons || [],
+    message: check?.reasons?.[0] || '',
+    previewGrid: check?.previewGrid || null,
+  });
 }));
 router.post('/teacher/requests/:id/approve', auth.requireAdmin, wrap((req, res) => {
   const list = hub.listRequests(req.user);

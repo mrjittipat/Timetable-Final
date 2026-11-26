@@ -10,6 +10,8 @@ interface SelectedSpan {
   dayLabel: string;
   dayIdx: number;
   span: GridSpan;
+  fromPeriod: number;
+  length: number;
 }
 
 const DAY_LABEL: Record<string, string> = {
@@ -40,17 +42,57 @@ const DAY_LABEL: Record<string, string> = {
             <div>
               <h3>คำขอย้าย / เปลี่ยนคาบสอน ({{ requests().length }})</h3>
               @if (!auth.isAdmin()) {
-                <div class="small muted">คลิกหรือลากคาบสอนในตารางของฉันไปวางยังช่องปลายทาง (ช่องสีเขียว = ย้ายได้ไม่ขัดเงื่อนไข) แล้วกรอกเหตุผลเพื่อส่งขออนุมัติ</div>
+                <div class="small muted">คลิกหรือลากคาบสอนไปวางยังช่องปลายทาง (วางทับวิชาอื่นเพื่อสลับได้ และหั่นคาบได้) — เป็นโหมดตัวอย่างก่อนส่งขออนุมัติจากแอดมิน</div>
               }
             </div>
             @if (!auth.isAdmin() && selected()) {
-              <button class="btn sm ghost" type="button" (click)="clearSelection()">ยกเลิกการเลือก</button>
+              <div class="row">
+                @if (previewGrid()) {
+                  <button class="btn sm" type="button" (click)="showPreview.update(v => !v)">
+                    {{ showPreview() ? 'ดูตารางเดิม' : 'ดูตารางตัวอย่างหลังย้าย' }}
+                  </button>
+                }
+                <button class="btn sm ghost" type="button" (click)="clearSelection()">รีเซ็ต / ยกเลิก</button>
+              </div>
             }
           </div>
           <div class="card-body" style="display: flex; flex-direction: column; gap: 16px">
             @if (!auth.isAdmin()) {
-              @if (myGrid(); as g) {
-                <div class="grid-wrap">
+              @if (displayGrid(); as g) {
+                @if (previewGrid() && showPreview()) {
+                  <div class="preview-banner">
+                    <strong>โหมดตารางตัวอย่างหลังย้าย / สลับ</strong> — ตารางสอนจริงจะยังไม่เปลี่ยนจนกว่าผู้ดูแลระบบจะกดอนุมัติ
+                  </div>
+                }
+
+                <!-- Split controls when a multi-period block is selected (before placing or anytime) -->
+                @if (selected(); as sel) {
+                  @if (sel.span.span > 1) {
+                    <div class="split-bar">
+                      <span class="small" style="font-weight: 700; color: var(--maroon-800)">หั่นคาบที่จะย้าย ({{ sel.span.display_code || sel.span.subject_id }}):</span>
+                      <div class="row" style="gap: 6px">
+                        <span class="small muted">เริ่มคาบ:</span>
+                        <div class="segmented">
+                          @for (p of blockPeriods(sel.span); track p) {
+                            <button type="button" [class.active]="sel.fromPeriod === p" (click)="setSplitStart(p)">คาบ {{ p }}</button>
+                          }
+                        </div>
+                      </div>
+                      <div class="row" style="gap: 6px">
+                        <span class="small muted">จำนวน:</span>
+                        <div class="segmented">
+                          @for (len of splitLengths(sel); track len) {
+                            <button type="button" [class.active]="sel.length === len" (click)="setSplitLength(len)">
+                              {{ len === sel.span.span ? 'ทั้งหมด ' + len + ' คาบ' : len + ' คาบ' }}
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
+                }
+
+                <div class="grid-wrap" [class.preview-mode]="previewGrid() && showPreview()">
                   <table class="tt-pick">
                     <colgroup>
                       <col style="width: 10%" />
@@ -79,11 +121,11 @@ const DAY_LABEL: Record<string, string> = {
                             } @else if (cell.span; as sp) {
                               <td [attr.colspan]="sp.span"
                                   class="span-cell"
-                                  [class.movable]="isMovable(sp)"
-                                  [class.selected-span]="isSelected(d.key, sp.start)"
-                                  [class.target-ok]="isTargetOk(d.key, sp.start)"
-                                  [class.target-picked]="isPickedDest(d.key, sp.start)"
-                                  [attr.draggable]="isMovable(sp)"
+                                  [class.movable]="isMovable(sp) && !(previewGrid() && showPreview())"
+                                  [class.selected-span]="!(previewGrid() && showPreview()) && isSelected(d.key, sp.start)"
+                                  [class.target-ok]="!(previewGrid() && showPreview()) && isTargetOk(d.key, sp.start)"
+                                  [class.target-picked]="isHighlightDest(d.key, sp.start)"
+                                  [attr.draggable]="isMovable(sp) && !(previewGrid() && showPreview())"
                                   (dragstart)="onDragStart($event, d.key, d.label, di, sp)"
                                   (dragover)="onDragOver($event, d.key, sp.start)"
                                   (drop)="onDrop($event, d.key, sp.start)"
@@ -91,26 +133,25 @@ const DAY_LABEL: Record<string, string> = {
                                 <div class="sp-code">{{ sp.display_code || sp.subject_id }}</div>
                                 <div class="sp-name">{{ sp.subject_name }}</div>
                                 <div class="sp-meta">{{ (sp.group_labels || sp.groups || []).join(', ') }} · {{ sp.room_name || sp.room }}</div>
-                                @if (isSelected(d.key, sp.start)) {
-                                  <span class="sp-badge sel">กำลังเลือกย้าย</span>
-                                } @else if (isTargetOk(d.key, sp.start)) {
-                                  <span class="sp-badge ok">สลับได้</span>
+                                @if (previewGrid() && showPreview() && isHighlightDest(d.key, sp.start)) {
+                                  <span class="sp-badge dest">ตำแหน่งใหม่ (ตัวอย่าง)</span>
+                                } @else if (!(previewGrid() && showPreview()) && isSelected(d.key, sp.start)) {
+                                  <span class="sp-badge sel">กำลังเลือกย้าย ({{ selected()!.length }} คาบ)</span>
+                                } @else if (!(previewGrid() && showPreview()) && isTargetOk(d.key, sp.start)) {
+                                  <span class="sp-badge ok">วางเพื่อสลับได้</span>
                                 }
                               </td>
                             } @else {
                               <td class="empty-cell"
                                   [class.exec-block]="g.entity?.isLeader && d.key === 'Tue' && cell.period >= 1 && cell.period <= 4"
-                                  [class.target-ok]="isTargetOk(d.key, cell.period)"
-                                  [class.target-picked]="isPickedDest(d.key, cell.period)"
-                                  [class.target-preview]="isInPickedRange(d.key, cell.period)"
+                                  [class.target-ok]="!(previewGrid() && showPreview()) && isTargetOk(d.key, cell.period)"
+                                  [class.target-picked]="!(previewGrid() && showPreview()) && isPickedDest(d.key, cell.period)"
                                   (dragover)="onDragOver($event, d.key, cell.period)"
                                   (drop)="onDrop($event, d.key, cell.period)"
                                   (click)="onEmptyClick(d.key, cell.period)">
                                 @if (g.entity?.isLeader && d.key === 'Tue' && cell.period >= 1 && cell.period <= 4) {
                                   <span class="exec-txt">ประชุมผู้บริหาร</span>
-                                } @else if (isPickedDest(d.key, cell.period)) {
-                                  <span class="sp-badge dest">ปลายทาง</span>
-                                } @else if (isTargetOk(d.key, cell.period)) {
+                                } @else if (!(previewGrid() && showPreview()) && isTargetOk(d.key, cell.period)) {
                                   <span class="sp-badge ok">ย้ายได้</span>
                                 }
                               </td>
@@ -131,27 +172,27 @@ const DAY_LABEL: Record<string, string> = {
                         ({{ (sel.span.group_labels || sel.span.groups || []).join(', ') }})
                       </div>
                       <span class="badge">
-                        ต้นทาง: วัน{{ sel.dayLabel }} คาบ {{ sel.span.start }}@if (sel.span.span > 1) {–{{ sel.span.start + sel.span.span - 1 }}} ({{ sel.span.span }} คาบ)
+                        ต้นทาง: วัน{{ sel.dayLabel }} คาบ {{ sel.fromPeriod }}@if (sel.length > 1) {–{{ sel.fromPeriod + sel.length - 1 }}} ({{ sel.length }} คาบ)
                       </span>
                     </div>
 
                     @if (!pickedDest()) {
                       <div class="alert info">
-                        กรุณาคลิกหรือลากไปวางที่ <strong>ช่องปลายทาง</strong> ในตารางด้านบน (ช่องสีเขียวคือช่วงเวลาที่ย้ายได้โดยไม่ขัดต่อเงื่อนไข)
-                        @if (loadingTargets()) { · กำลังคำนวณช่องว่าง… }
+                        คลิกหรือลากไปวางที่ <strong>ช่องปลายทาง</strong> ในตารางด้านบน (วางทับวิชาอื่นเพื่อสลับกันได้ · ช่องสีเขียวคือย้าย/สลับได้โดยไม่ขัดเงื่อนไข)
+                        @if (loadingTargets()) { · กำลังคำนวณช่องที่ย้ายได้… }
                       </div>
                     } @else if (pickedDest(); as dest) {
                       <div class="dest-summary">
-                        <strong>ปลายทางที่เลือก:</strong> วัน{{ dayTh(dest.day) }} คาบ {{ dest.period }}@if (sel.span.span > 1) {–{{ dest.period + sel.span.span - 1 }}}
-                        <span class="small muted">(ตารางสอนจริงจะยังไม่เปลี่ยนจนกว่าแอดมินจะกดอนุมัติ)</span>
+                        <strong>ปลายทาง:</strong> วัน{{ dayTh(dest.day) }} คาบ {{ dest.period }}@if (sel.length > 1) {–{{ dest.period + sel.length - 1 }}}
+                        <span class="small muted"> · คลิกช่องอื่นบนตารางเดิมเพื่อลองเปลี่ยนปลายทาง หรือกรอกเหตุผลเพื่อส่งคำขอ</span>
                       </div>
 
                       @if (checkingLive()) {
-                        <div class="alert info">กำลังตรวจสอบเงื่อนไขการย้ายคาบ…</div>
+                        <div class="alert info">กำลังจำลองการย้าย/สลับและตรวจเงื่อนไข…</div>
                       } @else if (liveCheck(); as chk) {
                         @if (chk.feasible) {
                           <div class="alert success">
-                            <strong>✓ สามารถย้ายได้ — ไม่ขัดต่อเงื่อนไขใด ๆ</strong>
+                            <strong>✓ สามารถย้าย/สลับได้ — ไม่ขัดต่อเงื่อนไขใด ๆ</strong>
                           </div>
                         } @else {
                           <div class="alert danger">
@@ -205,7 +246,7 @@ const DAY_LABEL: Record<string, string> = {
                   @if (r.status === 'pending' && r.check; as chk) {
                     <div class="check-strip" [class.ok]="chk.feasible" [class.bad]="!chk.feasible">
                       @if (chk.feasible) {
-                        <strong>✓ ตรวจเงื่อนไขผ่าน: สามารถย้ายได้โดยไม่ขัดต่อเงื่อนไข</strong>
+                        <strong>✓ ตรวจเงื่อนไขผ่าน: สามารถย้าย/สลับได้โดยไม่ขัดต่อเงื่อนไข</strong>
                       } @else {
                         <strong>✗ ขัดต่อเงื่อนไข: ไม่สามารถย้ายได้</strong>
                         @for (rs of chk.reasons; track $index) {
@@ -319,7 +360,17 @@ const DAY_LABEL: Record<string, string> = {
     .check-strip.ok { background: #ecfdf3; border: 1px solid #a7e3be; color: #166534; }
     .check-strip.bad { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
 
+    .preview-banner {
+      padding: 9px 14px; border-radius: 10px; font-size: 13px;
+      background: #fffbeb; border: 1.5px dashed #d97706; color: #92400e;
+    }
+    .split-bar {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+      padding: 10px 14px; border-radius: 10px; background: var(--maroon-50); border: 1px solid var(--border);
+    }
+
     .grid-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+    .grid-wrap.preview-mode { border: 2px dashed #d97706; }
     .tt-pick { width: 100%; min-width: 820px; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
     .tt-pick th, .tt-pick td { border: 1px solid var(--border); padding: 6px 4px; text-align: center; vertical-align: middle; }
     .tt-pick thead th { background: var(--maroon-800); color: #fff; font-weight: 600; }
@@ -343,7 +394,6 @@ const DAY_LABEL: Record<string, string> = {
 
     .target-ok { background: #ecfdf3 !important; box-shadow: inset 0 0 0 1.5px #16a34a; }
     .target-picked { background: #fef3c7 !important; box-shadow: inset 0 0 0 2px #d97706 !important; }
-    .target-preview { background: #fffbeb !important; box-shadow: inset 0 0 0 1.5px dashed #d97706; }
 
     .sp-badge {
       display: inline-block; margin-top: 3px; padding: 1px 6px; border-radius: 999px;
@@ -362,6 +412,9 @@ export class TeacherHubPage implements OnInit {
   requests = signal<any[]>([]);
   notes = signal<any[]>([]);
   myGrid = signal<Grid | null>(null);
+  previewGrid = signal<Grid | null>(null);
+  showPreview = signal(true);
+
   noteFilterSubject = signal('');
   noteMode = signal<'general' | 'subject'>('general');
   submittingReq = signal(false);
@@ -378,6 +431,7 @@ export class TeacherHubPage implements OnInit {
   noteContent = '';
   noteSubjectId = '';
 
+  displayGrid = computed(() => (this.previewGrid() && this.showPreview() ? this.previewGrid() : this.myGrid()));
   mySubjects = computed(() => this.myGrid()?.subjects?.list || []);
 
   validTargetSet = computed(() => {
@@ -411,6 +465,43 @@ export class TeacherHubPage implements OnInit {
     this.requests.set(r.requests || []);
     this.notes.set(n.notes || []);
     this.myGrid.set(g);
+  }
+
+  blockPeriods(sp: GridSpan) {
+    const out: number[] = [];
+    for (let i = 0; i < (sp.span || 1); i++) out.push(sp.start + i);
+    return out;
+  }
+
+  splitLengths(sel: SelectedSpan) {
+    const maxLen = sel.span.start + sel.span.span - sel.fromPeriod;
+    const out: number[] = [];
+    for (let i = 1; i <= maxLen; i++) out.push(i);
+    return out;
+  }
+
+  async setSplitStart(p: number) {
+    const sel = this.selected();
+    if (!sel) return;
+    const maxLen = sel.span.start + sel.span.span - p;
+    const nextLen = Math.min(sel.length, maxLen);
+    this.selected.set({ ...sel, fromPeriod: p, length: nextLen });
+    await this.refreshTargetsAndPreview();
+  }
+
+  async setSplitLength(len: number) {
+    const sel = this.selected();
+    if (!sel) return;
+    this.selected.set({ ...sel, length: len });
+    await this.refreshTargetsAndPreview();
+  }
+
+  private async refreshTargetsAndPreview() {
+    const sel = this.selected();
+    if (!sel) return;
+    await this.fetchMoveOptions(sel.day, sel.fromPeriod, sel.length);
+    const dest = this.pickedDest();
+    if (dest) await this.chooseDest(dest.day, dest.period);
   }
 
   rowCells(g: Grid, dayIdx: number) {
@@ -455,27 +546,23 @@ export class TeacherHubPage implements OnInit {
     return !!d && d.day === day && d.period === period;
   }
 
-  isInPickedRange(day: string, period: number) {
+  isHighlightDest(day: string, period: number) {
     const d = this.pickedDest();
-    const s = this.selected();
-    if (!d || !s || d.day !== day) return false;
-    return period > d.period && period < d.period + (s.span.span || 1);
+    if (!d || d.day !== day) return false;
+    return period === d.period;
   }
 
   clearSelection() {
     this.selected.set(null);
     this.pickedDest.set(null);
+    this.previewGrid.set(null);
+    this.showPreview.set(true);
     this.validTargets.set([]);
     this.liveCheck.set(null);
     this.reqReason = '';
   }
 
-  async selectSpan(day: string, dayLabel: string, dayIdx: number, span: GridSpan) {
-    if (!this.isMovable(span)) return;
-    this.selected.set({ day, dayLabel, dayIdx, span });
-    this.pickedDest.set(null);
-    this.liveCheck.set(null);
-    this.validTargets.set([]);
+  private async fetchMoveOptions(day: string, fromPeriod: number, length: number) {
     const tid = this.auth.user()?.teacher_id;
     if (!tid) return;
     this.loadingTargets.set(true);
@@ -484,8 +571,8 @@ export class TeacherHubPage implements OnInit {
         view: 'teacher',
         id: tid,
         fromDay: day,
-        fromPeriod: span.start,
-        length: span.span,
+        fromPeriod,
+        length,
       });
       this.validTargets.set(res.targets || []);
     } catch {
@@ -495,13 +582,29 @@ export class TeacherHubPage implements OnInit {
     }
   }
 
+  async selectSpan(day: string, dayLabel: string, dayIdx: number, span: GridSpan) {
+    if (!this.isMovable(span)) return;
+    this.selected.set({ day, dayLabel, dayIdx, span, fromPeriod: span.start, length: span.span });
+    this.pickedDest.set(null);
+    this.previewGrid.set(null);
+    this.showPreview.set(true);
+    this.liveCheck.set(null);
+    this.validTargets.set([]);
+    await this.fetchMoveOptions(day, span.start, span.span);
+  }
+
   async onSpanClick(day: string, dayLabel: string, dayIdx: number, span: GridSpan) {
+    if (this.previewGrid() && this.showPreview()) {
+      this.showPreview.set(false);
+      return;
+    }
     const cur = this.selected();
     if (cur && cur.day === day && cur.span.start === span.start) {
       this.clearSelection();
       return;
     }
-    if (cur && this.isTargetOk(day, span.start)) {
+    // If a block is already selected, clicking ANY other occupied block attempts to SWAP with it!
+    if (cur) {
       await this.chooseDest(day, span.start);
       return;
     }
@@ -509,12 +612,16 @@ export class TeacherHubPage implements OnInit {
   }
 
   async onEmptyClick(day: string, period: number) {
+    if (this.previewGrid() && this.showPreview()) {
+      this.showPreview.set(false);
+      return;
+    }
     if (!this.selected()) return;
     await this.chooseDest(day, period);
   }
 
   onDragStart(ev: DragEvent, day: string, dayLabel: string, dayIdx: number, span: GridSpan) {
-    if (!this.isMovable(span)) {
+    if (!this.isMovable(span) || (this.previewGrid() && this.showPreview())) {
       ev.preventDefault();
       return;
     }
@@ -523,20 +630,20 @@ export class TeacherHubPage implements OnInit {
   }
 
   onDragOver(ev: DragEvent, _day: string, _period: number) {
-    if (!this.selected()) return;
+    if (!this.selected() || (this.previewGrid() && this.showPreview())) return;
     ev.preventDefault();
   }
 
   async onDrop(ev: DragEvent, day: string, period: number) {
     ev.preventDefault();
-    if (!this.selected()) return;
+    if (!this.selected() || (this.previewGrid() && this.showPreview())) return;
     await this.chooseDest(day, period);
   }
 
   async chooseDest(day: string, period: number) {
     const sel = this.selected();
     if (!sel) return;
-    if (sel.day === day && sel.span.start === period) return;
+    if (sel.day === day && sel.fromPeriod === period) return;
     this.pickedDest.set({ day, period });
     this.checkingLive.set(true);
     try {
@@ -544,15 +651,18 @@ export class TeacherHubPage implements OnInit {
         kind: 'move',
         subject_id: sel.span.subject_id,
         fromDay: sel.day,
-        fromPeriod: sel.span.start,
-        length: sel.span.span,
+        fromPeriod: sel.fromPeriod,
+        length: sel.length,
         toDay: day,
         toPeriod: period,
         room_id: sel.span.room || '',
       });
       this.liveCheck.set({ feasible: Boolean(res.feasible), reasons: res.reasons || [] });
+      this.previewGrid.set(res.previewGrid || null);
+      this.showPreview.set(Boolean(res.previewGrid));
     } catch (err) {
       this.liveCheck.set({ feasible: false, reasons: [this.api.errorMessage(err)] });
+      this.previewGrid.set(null);
     } finally {
       this.checkingLive.set(false);
     }
@@ -572,8 +682,8 @@ export class TeacherHubPage implements OnInit {
         kind: 'move',
         subject_id: sel.span.subject_id,
         fromDay: sel.day,
-        fromPeriod: sel.span.start,
-        length: sel.span.span,
+        fromPeriod: sel.fromPeriod,
+        length: sel.length,
         toDay: dest.day,
         toPeriod: dest.period,
         room_id: sel.span.room || '',

@@ -62,8 +62,20 @@ export function moveSpan(rows, ctx, { view, id, fromDay, fromPeriod, length = 1,
   const movedRows = rows.filter(isMoving);
   const allMovingGroups = new Set(movedRows.map((r) => r.group_id));
 
-  // Rows of the same groups at destination swap into source
-  const isSwap = (r) => dstSet.has(r.timeslot_id) && allMovingGroups.has(r.group_id);
+  // Rows at destination that belong to the moving groups OR the same entity (e.g. teacher swapping two of their own classes)
+  const dstSeedRows = rows.filter(
+    (r) => dstSet.has(r.timeslot_id) && (allMovingGroups.has(r.group_id) || rowMatchesEntity(r, view, id))
+  );
+  const dstSubjects = new Set(dstSeedRows.map((r) => r.subject_id));
+  const dstGroups = new Set(dstSeedRows.map((r) => r.group_id));
+  const isSwap = (r) => {
+    if (!dstSet.has(r.timeslot_id)) return false;
+    if (allMovingGroups.has(r.group_id) || rowMatchesEntity(r, view, id)) return true;
+    const sub = ctx.subjects.get(r.subject_id);
+    if (sub?.special_mode === 'combined_year' && dstSubjects.has(r.subject_id)) return true;
+    if (ctx.electiveSets.has(r.group_id) && dstGroups.has(r.group_id)) return true;
+    return false;
+  };
 
   return rows.map((r) => {
     if (isMoving(r)) {
