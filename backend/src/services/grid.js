@@ -87,18 +87,23 @@ export function entitiesFor(view, ctx) {
       ComputerLab: 'ห้องปฏิบัติการคอมพิวเตอร์',
       Sport: 'โรงยิม/สนามกีฬา',
     };
-    return [...ctx.rooms.values()].map((r) => ({
-      id: r.room_id,
-      title: `${r.room_name} (${r.room_id})`,
-      subtitle: `${typeLabel[r.room_type] || r.room_type} · ความจุ ${r.capacity} ที่นั่ง${r.sport_tag ? ` · ${r.sport_tag}` : ''}`,
-      heading: 'ตารางการใช้พื้นที่',
-      info: [
-        ['สถานที่', `${r.room_name} (${r.room_id})`],
-        ['ประเภท', `${typeLabel[r.room_type] || r.room_type} (${r.capacity} ที่นั่ง)`],
-      ],
-      signer: 'ผู้ดูแลสถานที่',
-      signerName: '',
-    }));
+    return [...ctx.rooms.values()].map((r) => {
+      const capNum = Number(r.capacity) || 0;
+      const capSub = capNum > 0 ? ` · ความจุ ${capNum} ที่นั่ง` : '';
+      const capInfo = capNum > 0 ? ` (${capNum} ที่นั่ง)` : '';
+      return {
+        id: r.room_id,
+        title: `${r.room_name} (${r.room_id})`,
+        subtitle: `${typeLabel[r.room_type] || r.room_type}${capSub}${r.sport_tag ? ` · ${r.sport_tag}` : ''}`,
+        heading: 'ตารางการใช้พื้นที่',
+        info: [
+          ['สถานที่', `${r.room_name} (${r.room_id})`],
+          ['ประเภท', `${typeLabel[r.room_type] || r.room_type}${capInfo}`],
+        ],
+        signer: 'ผู้ดูแลสถานที่',
+        signerName: '',
+      };
+    });
   }
 
   return [];

@@ -7,7 +7,8 @@ import multer from 'multer';
 import QRCode from 'qrcode';
 import * as store from '../services/store.js';
 import { ENTITIES, entityFromFilename } from '../services/schema.js';
-import { parseCsv, parseXlsx } from '../services/csv.js';
+import { parseCsv, parseXlsx, toCsv } from '../services/csv.js';
+import { buildZip } from '../services/zip.js';
 import { convertYearRowsToTables } from '../services/seed-adapter.js';
 import { DEFAULT_CONFIG, loadConfig, mergeConfig, saveConfig } from '../services/config.js';
 import { buildContext, splitIds } from '../services/context.js';
@@ -392,6 +393,52 @@ router.post('/data/auto-advisors', wrap((_req, res) => {
   }
 
   res.json({ ok: true, assigned, groups: updatedGroups });
+}));
+
+const EXPORT_FOLDERS = [
+  ['teacher', '01_teacher'],
+  ['room', '02_room'],
+  ['student_group', '03_student_group'],
+  ['subject', '04_subject'],
+  ['teach', '05_teach'],
+  ['timeslot', '06_timeslot'],
+  ['register', '07_register'],
+];
+
+router.get('/data/export-all', (_req, res) => {
+  const data = store.getData();
+  const entries = EXPORT_FOLDERS.map(([entity, folder]) => {
+    const def = ENTITIES[entity];
+    const csvText = '\uFEFF' + toCsv(data[entity] || [], def.fields);
+    return {
+      name: `timetable-data/${folder}/${def.file}`,
+      data: Buffer.from(csvText, 'utf8'),
+    };
+  });
+  const zipBuf = buildZip(entries);
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="timetable-data.zip"');
+  res.send(zipBuf);
+});
+
+router.post('/data/clear-all', auth.requireAdmin, wrap((_req, res) => {
+  store.clearAllData();
+  res.json({ ok: true });
+}));
+
+router.get('/data/:entity/export', wrap((req, res) => {
+  const entity = req.params.entity;
+  const def = ENTITIES[entity];
+  if (!def) throw store.httpError(404, `ไม่พบตาราง ${entity}`);
+  const rows = store.getEntity(entity);
+  const csvText = '\uFEFF' + toCsv(rows, def.fields);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${def.file}"`);
+  res.send(csvText);
+}));
+
+router.delete('/data/:entity', auth.requireAdmin, wrap((req, res) => {
+  res.json(store.clearEntity(req.params.entity));
 }));
 
 router.post('/data/:entity', wrap((req, res) => {

@@ -61,9 +61,17 @@ const FIELD_LABELS: Record<string, string> = {
           <p>นำเข้าไฟล์ CSV/XLSX หรือแก้ไขข้อมูลอาจารย์ ห้อง/สนาม กลุ่มนักศึกษา และรายวิชาได้โดยตรง</p>
         </div>
         @if (auth.isAdmin()) {
-          <button class="btn danger" type="button" (click)="resetAll()">
-            <app-icon name="refresh" [size]="16" /> คืนค่าข้อมูลต้นฉบับ
-          </button>
+          <div class="row">
+            <a class="btn" href="/api/data/export-all" download>
+              <app-icon name="download" [size]="16" /> โหลดข้อมูลทั้งหมด (.zip)
+            </a>
+            <button class="btn danger" type="button" (click)="clearAll()">
+              <app-icon name="trash" [size]="16" /> ลบข้อมูลทั้งหมด
+            </button>
+            <button class="btn" type="button" (click)="resetAll()">
+              <app-icon name="refresh" [size]="16" /> คืนค่าข้อมูลต้นฉบับ
+            </button>
+          </div>
         }
       </div>
 
@@ -103,6 +111,12 @@ const FIELD_LABELS: Record<string, string> = {
                   <app-icon name="sparkles" [size]="15" /> จัดสรรครูที่ปรึกษาอัตโนมัติ
                 </button>
               }
+              <a class="btn sm" [href]="'/api/data/' + activeTab() + '/export'" download>
+                <app-icon name="download" [size]="15" /> โหลดชุดข้อมูล
+              </a>
+              <button class="btn sm danger" type="button" [disabled]="totalRows() === 0" (click)="clearCurrentEntity()">
+                <app-icon name="trash" [size]="15" /> ลบชุดข้อมูลนี้
+              </button>
               <button class="btn primary sm" type="button" (click)="openDialog(null)">
                 <app-icon name="plus" [size]="15" /> เพิ่มข้อมูล
               </button>
@@ -132,6 +146,8 @@ const FIELD_LABELS: Record<string, string> = {
                         <span class="badge" [class.warning]="row[f] === 'Leader'" [class.neutral]="row[f] !== 'Leader'">
                           {{ row[f] === 'Leader' ? 'ผู้บริหาร' : 'อาจารย์' }}
                         </span>
+                      } @else if (f === 'capacity' && (+row[f] || 0) <= 0) {
+                        <span class="muted">-</span>
                       } @else {
                         {{ row[f] }}
                       }
@@ -301,6 +317,41 @@ export class DataPage {
       const res = await this.api.autoAssignAdvisors();
       await this.state.refresh();
       this.toasts.success(`จัดสรรครูที่ปรึกษาครบ ${res.assigned?.length || 0} กลุ่มแล้ว`);
+    } catch (err) {
+      this.toasts.error(this.api.errorMessage(err));
+    }
+  }
+
+  async clearCurrentEntity() {
+    const tab = this.tabs.find((t) => t.key === this.activeTab());
+    const ok = await this.confirm.ask({
+      title: `ลบชุดข้อมูล "${tab?.label || this.activeTab()}"`,
+      message: `ต้องการลบข้อมูลทั้งหมดในตาราง ${tab?.label || this.activeTab()} (${this.totalRows()} แถว) ใช่หรือไม่?`,
+      confirmText: 'ลบชุดข้อมูลนี้',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await this.api.clearEntity(this.activeTab());
+      await this.state.refreshData();
+      this.toasts.success(`ลบชุดข้อมูล ${tab?.label || this.activeTab()} แล้ว`);
+    } catch (err) {
+      this.toasts.error(this.api.errorMessage(err));
+    }
+  }
+
+  async clearAll() {
+    const ok = await this.confirm.ask({
+      title: 'ลบข้อมูลทั้งหมด',
+      message: 'ข้อมูลทั้ง 7 ตารางและตารางเรียนปัจจุบันจะถูกลบออกทั้งหมด (สามารถกด "คืนค่าข้อมูลต้นฉบับ" เพื่อนำกลับมาได้ภายหลัง)',
+      confirmText: 'ลบข้อมูลทั้งหมด',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await this.api.clearAllData();
+      await this.state.refresh();
+      this.toasts.success('ลบข้อมูลทั้งหมดแล้ว');
     } catch (err) {
       this.toasts.error(this.api.errorMessage(err));
     }

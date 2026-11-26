@@ -118,7 +118,7 @@ export function buildStaticRooms() {
     ['F12_1', 'โรงยิมมวย สนาม 1', 'มวยไทย'],
     ['F12_2', 'โรงยิมมวย สนาม 2', 'มวยสากลสมัครเล่น'],
   ].map(([room_id, room_name, sport_tag]) => ({
-    room_id, room_name, room_type: 'Sport', capacity: 40, sport_tag,
+    room_id, room_name, room_type: 'Sport', capacity: 0, sport_tag,
   }));
 
   return [...homerooms, ...halls, ...labs, ...sports];

@@ -113,6 +113,26 @@ export function resetData() {
   return data;
 }
 
+export function clearEntity(entity) {
+  if (!ENTITIES[entity]) throw httpError(404, `ไม่พบตาราง ${entity}`);
+  data[entity] = [];
+  writeEntityCsv(entity, []);
+  return { cleared: entity };
+}
+
+export function clearAllData() {
+  for (const entity of Object.keys(ENTITIES)) {
+    data[entity] = [];
+    writeEntityCsv(entity, []);
+  }
+  timetable = null;
+  const outCsv = path.join(OUTPUT_DIR, 'output.csv');
+  const outMeta = path.join(OUTPUT_DIR, 'meta.json');
+  if (fs.existsSync(outCsv)) fs.unlinkSync(outCsv);
+  if (fs.existsSync(outMeta)) fs.unlinkSync(outMeta);
+  return data;
+}
+
 export function getData() {
   return data;
 }
