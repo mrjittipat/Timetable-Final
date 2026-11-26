@@ -194,12 +194,14 @@ export function validate(rows, data, config, ctx = buildContext(data, config)) {
         if (expectedSport && !rIds.includes(expectedSport)) {
           vC8.push(`วิชากีฬา ${subId} กลุ่ม ${g} (${slotLabel(ctx, ts)}) ไม่ได้จองสนาม ${expectedSport}`);
         }
-        const hasTheory = rIds.some((rid) => {
-          const rt = ctx.rooms.get(rid)?.room_type;
-          return rt === 'Theory' || rt === 'LectureHall';
-        });
-        if (!hasTheory) {
-          vC8.push(`วิชากีฬา ${subId} กลุ่ม ${g} (${slotLabel(ctx, ts)}) ไม่ได้จองห้องเรียนทฤษฎีควบคู่กับสนาม`);
+        if ((Number(sub.theory) || 0) > 0) {
+          const hasTheory = rIds.some((rid) => {
+            const rt = ctx.rooms.get(rid)?.room_type;
+            return rt === 'Theory' || rt === 'LectureHall';
+          });
+          if (!hasTheory) {
+            vC8.push(`วิชากีฬา ${subId} กลุ่ม ${g} (${slotLabel(ctx, ts)}) ไม่ได้จองห้องเรียนทฤษฎีควบคู่กับสนาม`);
+          }
         }
       }
     }
