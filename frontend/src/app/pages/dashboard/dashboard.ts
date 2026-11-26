@@ -451,6 +451,15 @@ import { Grid } from '../../core/models';
     .guide-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; }
     .g-step { background: var(--maroon-50); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; }
     @media (max-width: 960px) { .bars-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) {
+      .hero { padding: 18px 16px; gap: 12px; }
+      .kpi { padding: 13px 14px; }
+      .kpi-val { font-size: 24px; }
+      .bar-row { grid-template-columns: 112px 1fr 38px; gap: 6px; font-size: 12px; }
+      .guide-grid { grid-template-columns: 1fr; }
+      .heat-table { font-size: 11.5px; }
+      .heat-table th, .heat-table td { padding: 5px 3px; }
+    }
   `,
 })
 export class DashboardPage implements OnInit {

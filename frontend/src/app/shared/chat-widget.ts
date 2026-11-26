@@ -191,6 +191,16 @@ import { PdfPreviewComponent } from './pdf-preview';
       flex: 1; resize: none; border: 1px solid var(--border-strong); border-radius: 10px;
       padding: 8px 10px; font: inherit; font-size: 13.5px; max-height: 90px;
     }
+
+    @media (max-width: 640px) {
+      .chat-fab { right: 14px; bottom: 14px; width: 52px; height: 52px; }
+      .chat-panel {
+        right: 8px; left: 8px; bottom: 74px; width: auto; max-width: none;
+        height: 72dvh; max-height: calc(100dvh - 88px); border-radius: 14px;
+      }
+      .chat-msgs { padding: 10px; }
+      .chat-composer textarea { font-size: 16px; }
+    }
   `,
 })
 export class ChatWidgetComponent implements OnInit {

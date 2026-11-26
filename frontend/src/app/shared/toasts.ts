@@ -26,6 +26,10 @@ import { Toasts } from '../core/toast';
     .toast.success { border-left-color: var(--success); }
     .toast.error { border-left-color: var(--danger); }
     .toast.info { border-left-color: #2563eb; }
+
+    @media (max-width: 640px) {
+      .toasts { left: 12px; right: 12px; bottom: 78px; max-width: none; }
+    }
   `,
 })
 export class ToastsComponent {

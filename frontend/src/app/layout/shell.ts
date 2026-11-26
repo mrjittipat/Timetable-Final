@@ -17,6 +17,9 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
   template: `
     <a class="sr-only" href="#main">ข้ามไปยังเนื้อหา</a>
     <div class="shell" [class.collapsed]="collapsed()" [class.mobile-open]="mobileOpen()">
+      @if (mobileOpen()) {
+        <div class="mobile-backdrop" (click)="mobileOpen.set(false)" aria-hidden="true"></div>
+      }
       <aside class="sidebar" [class]="'sidebar style-' + (theme.appearance()['sidebarStyle'] || 'gradient')">
         <div class="brand">
           <div class="brand-logo" [class]="theme.appearance()['logoShape'] || 'rounded'">
@@ -137,8 +140,8 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
             <span class="top-title">{{ theme.appearance()['topBarTitle'] || 'ระบบจัดตารางเรียนด้วยอัลกอริทึมปัญญาประดิษฐ์' }}</span>
           </div>
           <div class="row">
-            <button class="btn sm" type="button" [disabled]="state.loading()" (click)="reload()">
-              <app-icon name="refresh" [size]="15" /> โหลดข้อมูลใหม่
+            <button class="btn sm reload-btn" type="button" [disabled]="state.loading()" (click)="reload()" aria-label="โหลดข้อมูลใหม่">
+              <app-icon name="refresh" [size]="15" /> <span class="reload-label">โหลดข้อมูลใหม่</span>
             </button>
             <div class="profile-wrap">
               <button class="profile-btn" type="button" (click)="menuOpen.update(v => !v)">
@@ -275,10 +278,31 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
     .banner.info { background: #eef4ff; color: #1d4ed8; border-bottom: 1px solid #c8dcff; }
     .content { flex: 1; }
 
+    .mobile-backdrop { display: none; }
+
     @media (max-width: 960px) {
-      .sidebar { position: fixed; left: -280px; z-index: 300; transition: left 0.2s; }
+      .mobile-backdrop {
+        display: block; position: fixed; inset: 0; z-index: 250;
+        background: rgba(28, 10, 15, 0.45);
+      }
+      .sidebar, .shell.collapsed .sidebar {
+        position: fixed; left: -300px; top: 0; bottom: 0; width: min(272px, 84vw);
+        height: 100dvh; z-index: 300; transition: left 0.22s var(--ease);
+        box-shadow: var(--shadow-lg);
+      }
       .shell.mobile-open .sidebar { left: 0; }
       .top-title { display: none; }
+      .topbar { padding: 0 12px; gap: 8px; }
+      .banner { padding: 8px 12px; flex-wrap: wrap; font-size: 12.5px; }
+    }
+    @media (max-width: 640px) {
+      .p-meta { display: none; }
+      .profile-btn { padding: 3px 6px 3px 3px; gap: 4px; }
+      .profile-menu { width: min(240px, calc(100vw - 24px)); }
+    }
+    @media (max-width: 480px) {
+      .reload-label { display: none; }
+      .reload-btn { width: 36px; padding: 0; }
     }
   `,
 })
@@ -332,6 +356,9 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   toggleSidebar() {
     if (window.innerWidth <= 960) {
+      if (!this.mobileOpen() && this.collapsed()) {
+        this.collapsed.set(false);
+      }
       this.mobileOpen.update((v) => !v);
     } else {
       const next = !this.collapsed();

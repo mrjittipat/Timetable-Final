@@ -209,6 +209,10 @@ import { IconComponent } from '../../shared/icon';
     }
     @media (max-width: 600px) {
       .pub-cards, .pub-stats { grid-template-columns: 1fr !important; }
+      .car-nav { width: 32px; height: 32px; font-size: 16px; }
+      .stat-tile { padding: 12px 14px; }
+      .st-val { font-size: 20px; }
+      .pub-card { padding: 13px 14px; }
     }
   `,
 })

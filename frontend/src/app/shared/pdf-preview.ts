@@ -48,6 +48,11 @@ import { IconComponent } from './icon';
       position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       gap: 10px; background: rgba(255,255,255,0.9); font-weight: 500; z-index: 2;
     }
+
+    @media (max-width: 640px) {
+      .pdf-modal { height: 94dvh; border-radius: 12px; }
+      .pdf-head { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
+    }
   `,
 })
 export class PdfPreviewComponent {

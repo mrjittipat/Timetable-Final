@@ -296,6 +296,14 @@ import { IconComponent } from '../../shared/icon';
       .left-pane { padding: 28px 24px; gap: 24px; }
       .left-mid h1 { font-size: 26px; }
     }
+    @media (max-width: 640px) {
+      .left-pane { padding: 20px 16px; gap: 16px; }
+      .left-mid h1 { font-size: 22px; margin: 10px 0 8px; }
+      .left-mid p { font-size: 13.5px; margin-bottom: 14px; }
+      .chips span { padding: 4px 10px; font-size: 11.5px; }
+      .right-pane { padding: 20px 12px; }
+      .auth-body { padding: 20px 16px; }
+    }
   `,
 })
 export class LoginPage implements OnInit {

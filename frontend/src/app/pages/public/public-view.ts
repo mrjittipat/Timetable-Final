@@ -64,6 +64,10 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
     .pub-wrap { min-height: 100vh; background: var(--bg); }
     .pub-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; position: sticky; top: 0; z-index: 50; }
     .pub-inner { max-width: 1280px; margin: 0 auto; }
+
+    @media (max-width: 640px) {
+      .pub-bar { padding: 8px 12px; }
+    }
   `,
 })
 export class PublicViewPage implements OnInit {

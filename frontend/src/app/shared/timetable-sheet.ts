@@ -92,7 +92,7 @@ import { Grid, GridSpan, View } from '../core/models';
     }
   `,
   styles: `
-    .sheet-wrap { width: 100%; overflow-x: auto; }
+    .sheet-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .tt-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 780px; }
     .tt-table th, .tt-table td { border: 1px solid var(--border-strong); text-align: center; vertical-align: middle; }
     .tt-table thead th { background: var(--maroon-700); color: #fff; padding: 7px 4px; font-weight: 600; width: 10%; }
@@ -140,8 +140,16 @@ import { Grid, GridSpan, View } from '../core/models';
     .agenda-card.hl { background: #fff6db; }
     .agenda-card.dim { opacity: 0.35; }
     .agenda-time { min-width: 72px; font-weight: 700; color: var(--maroon-700); font-size: 13px; }
-    .agenda-info .code { font-weight: 600; font-size: 13.5px; }
-    .agenda-info .meta { font-size: 12px; color: var(--text-muted); }
+    .agenda-info { min-width: 0; flex: 1; }
+    .agenda-info .code { font-weight: 600; font-size: 13.5px; word-break: break-word; }
+    .agenda-info .meta { font-size: 12px; color: var(--text-muted); word-break: break-word; }
+
+    @media (max-width: 640px) {
+      .day-pills { -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+      .day-pills button { padding: 7px 12px; font-size: 12.5px; }
+      .agenda-card { padding: 10px 12px; gap: 10px; align-items: flex-start; }
+      .agenda-time { min-width: 64px; font-size: 12.5px; padding-top: 1px; }
+    }
   `,
 })
 export class TimetableSheetComponent {
