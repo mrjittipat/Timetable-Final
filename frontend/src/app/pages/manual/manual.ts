@@ -51,7 +51,7 @@ import { IconComponent } from '../../shared/icon';
               <table class="m-table">
                 <thead>
                   <tr>
-                    <th style="width: 82px">วัน / คาบ</th>
+                    <th>วัน / คาบ</th>
                     @for (p of g.periods; track p.period) {
                       <th [class.brk]="p.isBreak">{{ p.period }}<div class="small" style="font-weight: 400">{{ p.start }}</div></th>
                     }
@@ -98,8 +98,8 @@ import { IconComponent } from '../../shared/icon';
   styles: `
     .m-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 780px; }
     .m-table th, .m-table td { border: 1px solid var(--border-strong); text-align: center; vertical-align: middle; }
-    .m-table thead th { background: var(--maroon-700); color: #fff; padding: 7px 4px; }
-    .m-table thead th.brk { background: var(--maroon-600); width: 52px; }
+    .m-table thead th { background: var(--maroon-700); color: #fff; padding: 7px 4px; width: 10%; }
+    .m-table thead th.brk { background: var(--maroon-600); }
     .m-day { background: var(--maroon-50); font-weight: 600; height: 74px; }
     .m-brk { background: #f6f1f2; color: var(--text-muted); font-weight: 600; }
     .m-empty { height: 74px; background: var(--surface); }

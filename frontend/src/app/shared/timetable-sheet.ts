@@ -95,9 +95,9 @@ import { Grid, GridSpan, View } from '../core/models';
     .sheet-wrap { width: 100%; overflow-x: auto; }
     .tt-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 780px; }
     .tt-table th, .tt-table td { border: 1px solid var(--border-strong); text-align: center; vertical-align: middle; }
-    .tt-table thead th { background: var(--maroon-700); color: #fff; padding: 7px 4px; font-weight: 600; }
-    .tt-table thead th.break-hdr { background: var(--maroon-600); width: 54px; }
-    .tt-table thead th.day-col { width: 82px; }
+    .tt-table thead th { background: var(--maroon-700); color: #fff; padding: 7px 4px; font-weight: 600; width: 10%; }
+    .tt-table thead th.break-hdr { background: var(--maroon-600); }
+    .tt-table thead th.day-col { }
     .p-num { font-size: 13px; }
     .p-time { font-size: 10.5px; opacity: 0.88; font-weight: 400; }
     .day-cell { background: var(--maroon-50); font-weight: 600; color: var(--maroon-900); padding: 8px 4px; height: 74px; }
