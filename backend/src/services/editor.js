@@ -88,7 +88,7 @@ export function moveSpan(rows, ctx, { view, id, fromDay, fromPeriod, length = 1,
   });
 }
 
-export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id, electiveEdits }) {
+export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id, group_ids, electiveEdits }) {
   const len = Math.max(1, Number(length) || 1);
   const slots = resolveWindow(ctx, day, Number(period), len);
   if (!slots) throw httpError(400, 'ช่วงคาบไม่ถูกต้อง');
@@ -112,14 +112,43 @@ export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher
   const seed = rows.filter((r) => slotSet.has(r.timeslot_id) && rowMatchesEntity(r, view, id));
   if (seed.length === 0) throw httpError(404, 'ไม่พบคาบที่ต้องการแก้ไข');
   const subs = new Set(seed.map((r) => r.subject_id));
+  const seedTeacher = seed[0].teacher_id;
+  const seedRoom = seed[0].room_id;
+  const seedSub = seed[0].subject_id;
+
+  const isTargetRow = (r) => {
+    if (!slotSet.has(r.timeslot_id)) return false;
+    if (rowMatchesEntity(r, view, id)) return true;
+    const sub = ctx.subjects.get(r.subject_id);
+    if (sub?.special_mode === 'combined_year' && subs.has(r.subject_id)) return true;
+    if (subs.has(r.subject_id) && r.teacher_id === seedTeacher && r.room_id === seedRoom) return true;
+    return false;
+  };
+
+  // Multi-group edit (add/remove groups for normal, combined-year, ADVISOR, ACTIVITY)
+  if (Array.isArray(group_ids) && group_ids.length > 0) {
+    const cleanGroups = [...new Set(group_ids.map((g) => String(g || '').trim()).filter(Boolean))];
+    if (cleanGroups.length === 0) throw httpError(400, 'ต้องมีกลุ่มเรียนอย่างน้อย 1 กลุ่ม');
+    const nextTeacher = teacher_id != null && teacher_id !== '' ? String(teacher_id).trim() : seedTeacher;
+    const nextRoom = room_id != null && room_id !== '' ? String(room_id).trim() : seedRoom;
+    const kept = rows.filter((r) => !isTargetRow(r));
+    const added = [];
+    for (const gid of cleanGroups) {
+      for (const ts of slots) {
+        added.push({
+          group_id: gid,
+          timeslot_id: ts,
+          subject_id: seedSub,
+          teacher_id: nextTeacher,
+          room_id: nextRoom,
+        });
+      }
+    }
+    return [...kept, ...added];
+  }
 
   return rows.map((r) => {
-    if (!slotSet.has(r.timeslot_id)) return { ...r };
-    const sub = ctx.subjects.get(r.subject_id);
-    const match =
-      rowMatchesEntity(r, view, id) ||
-      (sub?.special_mode === 'combined_year' && subs.has(r.subject_id));
-    if (!match) return { ...r };
+    if (!isTargetRow(r)) return { ...r };
     return {
       ...r,
       teacher_id: teacher_id != null && teacher_id !== '' ? String(teacher_id).trim() : r.teacher_id,

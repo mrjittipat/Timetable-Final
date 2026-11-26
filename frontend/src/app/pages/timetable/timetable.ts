@@ -264,14 +264,30 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
                       }
                     </select>
                   </div>
-                  @if (canEditGroup(detail.span)) {
+                  @if (canEditGroups(detail.span)) {
                     <div class="field" style="grid-column: 1 / -1">
-                      <label>กลุ่มเรียน</label>
-                      <select class="input" [(ngModel)]="editGroupId">
-                        @for (g of allActiveGroups(); track g['group_id']) {
-                          <option [value]="g['group_id']">{{ g['group_name'] }} ({{ g['group_id'] }})</option>
+                      <label>กลุ่มเรียน ({{ editGroupIds().length }} กลุ่ม)</label>
+                      <div class="chip-list">
+                        @for (gid of editGroupIds(); track gid) {
+                          <span class="grp-chip">
+                            {{ groupNameOf(gid) }}
+                            <button type="button" class="chip-x" title="ลบกลุ่มนี้ออก"
+                                    [disabled]="editGroupIds().length <= 1"
+                                    (click)="removeEditGroup(gid)">×</button>
+                          </span>
                         }
-                      </select>
+                      </div>
+                      @if (availableGroupsToAdd().length > 0) {
+                        <div class="row" style="margin-top: 6px; gap: 6px">
+                          <select class="input" style="flex: 1" [(ngModel)]="addGroupPick">
+                            <option value="">— เลือกกลุ่มเรียนที่ต้องการเพิ่ม —</option>
+                            @for (g of availableGroupsToAdd(); track g['group_id']) {
+                              <option [value]="g['group_id']">{{ g['group_name'] }} ({{ g['group_id'] }})</option>
+                            }
+                          </select>
+                          <button class="btn sm" type="button" [disabled]="!addGroupPick" (click)="addEditGroup()">+ เพิ่มกลุ่ม</button>
+                        </div>
+                      }
                     </div>
                   }
                 </div>
@@ -392,6 +408,16 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
     .exec-card { border-color: #f59e0b; }
     .exec-head { background: linear-gradient(90deg, #fffbeb 0%, #ffffff 70%); }
     .move-box, .edit-box { margin-top: 10px; padding: 12px; background: var(--maroon-50); border: 1px solid var(--border); border-radius: 10px; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .grp-chip {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border-strong); font-size: 12px; font-weight: 600;
+    }
+    .chip-x {
+      border: none; background: transparent; color: var(--danger); font-size: 15px; line-height: 1;
+      cursor: pointer; padding: 0 2px;
+    }
+    .chip-x:disabled { opacity: 0.3; cursor: not-allowed; }
 
     @media (max-width: 640px) {
       .combo-menu { max-height: 60dvh; }
@@ -428,7 +454,8 @@ export class TimetablePage implements OnInit {
   savingEdit = signal(false);
   editRoom1 = '';
   editRoom2 = '';
-  editGroupId = '';
+  editGroupIds = signal<string[]>([]);
+  addGroupPick = '';
   electiveEditItems = signal<{ subject_id: string; subject_name: string; room1: string; room2: string }[]>([]);
   undoStack = signal<OutputRow[][]>([]);
   pdfUrl = signal<string | null>(null);
@@ -436,6 +463,10 @@ export class TimetablePage implements OnInit {
 
   allRooms = computed(() => this.state.data()?.data?.['room'] || []);
   allActiveGroups = computed(() => (this.state.data()?.data?.['student_group'] || []).filter((g: any) => Number(g['year']) !== 4));
+  availableGroupsToAdd = computed(() => {
+    const cur = new Set(this.editGroupIds());
+    return this.allActiveGroups().filter((g: any) => !cur.has(g['group_id']));
+  });
 
   currentEntities = computed(() => {
     const list = this.entities()[this.view()] || [];
@@ -591,11 +622,28 @@ export class TimetablePage implements OnInit {
     this.toasts.success('คัดลอกลิงก์แล้ว');
   }
 
-  canEditGroup(sp: GridSpan) {
+  canEditGroups(sp: GridSpan) {
     const grps = sp.groups || [];
-    if (grps.length !== 1) return false;
-    const gid = grps[0];
-    return !['Y2_EL', 'Y3_EL1', 'Y3_EL2'].includes(gid);
+    if (grps.length === 0) return false;
+    return !grps.some((gid) => ['Y2_EL', 'Y3_EL1', 'Y3_EL2'].includes(gid));
+  }
+
+  groupNameOf(gid: string) {
+    const g = this.allActiveGroups().find((x: any) => x['group_id'] === gid);
+    return g ? `${g['group_name']} (${gid})` : gid;
+  }
+
+  addEditGroup() {
+    if (!this.addGroupPick) return;
+    if (!this.editGroupIds().includes(this.addGroupPick)) {
+      this.editGroupIds.update((list) => [...list, this.addGroupPick]);
+    }
+    this.addGroupPick = '';
+  }
+
+  removeEditGroup(gid: string) {
+    if (this.editGroupIds().length <= 1) return;
+    this.editGroupIds.update((list) => list.filter((x) => x !== gid));
   }
 
   async onSpanClick(ev: { day: string; dayLabel: string; span: GridSpan }) {
@@ -603,7 +651,20 @@ export class TimetablePage implements OnInit {
     const rParts = String(ev.span.room || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
     this.editRoom1 = rParts[0] || '';
     this.editRoom2 = rParts[1] || '';
-    this.editGroupId = (ev.span.groups || [])[0] || '';
+    // Collect all groups sharing this exact subject+teacher+room at this timeslot
+    const rows = this.state.timetable()?.rows || [];
+    const tsRow = (this.state.data()?.data?.['timeslot'] || []).find(
+      (t: any) => t['day'] === ev.day && Number(t['period']) === ev.span.start
+    );
+    let grpList = [...(ev.span.groups || [])];
+    if (tsRow && this.canEditGroups(ev.span)) {
+      const siblingGroups = rows
+        .filter((r) => r.timeslot_id === tsRow['timeslot_id'] && r.subject_id === ev.span.subject_id && r.teacher_id === ev.span.teacher_id && r.room_id === ev.span.room)
+        .map((r) => r.group_id);
+      if (siblingGroups.length > grpList.length) grpList = [...new Set(siblingGroups)];
+    }
+    this.editGroupIds.set(grpList);
+    this.addGroupPick = '';
     this.electiveEditItems.set(this.buildElectiveEditList(ev.day, ev.span));
     this.moveTargets.set([]);
     if (!this.auth.isAdmin() || this.selectedId() === '__all__') return;
@@ -698,7 +759,7 @@ export class TimetablePage implements OnInit {
         period: d.span.start,
         length: d.span.span,
         room_id: [...new Set(roomIds)].join('+'),
-        group_id: this.canEditGroup(d.span) ? this.editGroupId : undefined,
+        group_ids: this.canEditGroups(d.span) ? this.editGroupIds() : undefined,
       });
       this.activeSpan.set(null);
       await this.state.refreshTimetable();

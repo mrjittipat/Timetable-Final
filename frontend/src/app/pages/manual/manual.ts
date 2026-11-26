@@ -398,12 +398,28 @@ const PERIODS = [
                     </select>
                   </div>
                   <div class="field" style="grid-column: 1 / -1">
-                    <label>กลุ่มเรียน</label>
-                    <select class="input" [(ngModel)]="editGroupId">
-                      @for (g of groups(); track g.id) {
-                        <option [value]="g.id">{{ g.title }}</option>
+                    <label>กลุ่มเรียน ({{ editGroupIds().length }} กลุ่ม)</label>
+                    <div class="chip-list">
+                      @for (gid of editGroupIds(); track gid) {
+                        <span class="grp-chip">
+                          {{ groupNameOf(gid) }}
+                          <button type="button" class="chip-x" title="ลบกลุ่มนี้ออก"
+                                  [disabled]="editGroupIds().length <= 1"
+                                  (click)="removeEditGroup(gid)">×</button>
+                        </span>
                       }
-                    </select>
+                    </div>
+                    @if (availableGroupsToAdd().length > 0) {
+                      <div class="row" style="margin-top: 6px; gap: 6px">
+                        <select class="input" style="flex: 1" [(ngModel)]="addGroupPick">
+                          <option value="">— เลือกกลุ่มเรียนที่ต้องการเพิ่ม —</option>
+                          @for (g of availableGroupsToAdd(); track g.id) {
+                            <option [value]="g.id">{{ g.title }}</option>
+                          }
+                        </select>
+                        <button class="btn sm" type="button" [disabled]="!addGroupPick" (click)="addEditGroup()">+ เพิ่มกลุ่ม</button>
+                      </div>
+                    }
                   </div>
                 </div>
               </div>
@@ -433,6 +449,17 @@ const PERIODS = [
     .seed-bar { padding: 12px 16px; }
     .seed-chip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .seed-val { font-size: 16px; background: var(--maroon-100); color: var(--maroon-700); padding: 2px 10px; border-radius: 8px; }
+    .edit-box { margin-top: 10px; padding: 12px; background: var(--maroon-50); border: 1px solid var(--border); border-radius: 10px; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .grp-chip {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 999px;
+      background: var(--surface); border: 1px solid var(--border-strong); font-size: 12px; font-weight: 600;
+    }
+    .chip-x {
+      border: none; background: transparent; color: var(--danger); font-size: 15px; line-height: 1;
+      cursor: pointer; padding: 0 2px;
+    }
+    .chip-x:disabled { opacity: 0.3; cursor: not-allowed; }
 
     .manual-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
     .grid-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -534,8 +561,14 @@ export class ManualPage implements OnInit {
   activeSpan = signal<{ day: string; dayLabel: string; span: DraftSpan } | null>(null);
   editRoom1 = '';
   editRoom2 = '';
-  editGroupId = '';
+  editGroupIds = signal<string[]>([]);
+  addGroupPick = '';
   electiveEditItems = signal<{ subject_id: string; subject_name: string; room1: string; room2: string }[]>([]);
+
+  availableGroupsToAdd = computed(() => {
+    const cur = new Set(this.editGroupIds());
+    return this.groups().filter((g) => !cur.has(g.id));
+  });
 
   currentSeed = computed(() =>
     this.dirty() && this.draftSeed() !== null
@@ -934,6 +967,23 @@ export class ManualPage implements OnInit {
     this.undoStack.update((s) => [...s.slice(-29), snap]);
   }
 
+  groupNameOf(gid: string) {
+    return this.groups().find((g) => g.id === gid)?.title || gid;
+  }
+
+  addEditGroup() {
+    if (!this.addGroupPick) return;
+    if (!this.editGroupIds().includes(this.addGroupPick)) {
+      this.editGroupIds.update((list) => [...list, this.addGroupPick]);
+    }
+    this.addGroupPick = '';
+  }
+
+  removeEditGroup(gid: string) {
+    if (this.editGroupIds().length <= 1) return;
+    this.editGroupIds.update((list) => list.filter((x) => x !== gid));
+  }
+
   onSpanClick(day: string, dayLabel: string, span: DraftSpan) {
     if (this.auth.isAdmin() && this.selectedSub()) {
       this.placeBrushAt(day, span.start);
@@ -942,7 +992,16 @@ export class ManualPage implements OnInit {
     const rParts = String(span.room_id || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
     this.editRoom1 = rParts[0] || '';
     this.editRoom2 = rParts[1] || '';
-    this.editGroupId = this.groupId();
+    const firstTs = this.slotByDayPeriod().get(`${day}|${span.start}`);
+    const siblingGroups = firstTs
+      ? [...new Set(
+          this.draftRows()
+            .filter((r) => r.timeslot_id === firstTs && r.subject_id === span.subject_id && r.teacher_id === span.teacher_id && r.room_id === span.room_id)
+            .map((r) => r.group_id)
+        )]
+      : [this.groupId()];
+    this.editGroupIds.set(siblingGroups.length ? siblingGroups : [this.groupId()]);
+    this.addGroupPick = '';
     if (span.isElectiveCohort) {
       const slotSet = new Set<string>();
       for (let k = 0; k < span.span; k++) {
@@ -1004,22 +1063,35 @@ export class ManualPage implements OnInit {
       this.toasts.error('กรุณาเลือกห้อง/สนามอย่างน้อย 1 แห่ง');
       return;
     }
+    const nextGroups = this.editGroupIds();
+    if (nextGroups.length === 0) {
+      this.toasts.error('ต้องมีกลุ่มเรียนอย่างน้อย 1 กลุ่ม');
+      return;
+    }
     const newRoom = [...new Set(roomIds)].join('+');
-    const newGroup = this.editGroupId || this.groupId();
-    const curGroup = this.groupId();
-    const slotSet = new Set<string>();
+    const slotIds: string[] = [];
     for (let k = 0; k < d.span.span; k++) {
       const ts = this.slotByDayPeriod().get(`${d.day}|${d.span.start + k}`);
-      if (ts) slotSet.add(ts);
+      if (ts) slotIds.push(ts);
     }
+    const slotSet = new Set(slotIds);
     this.pushUndo();
-    const next = this.draftRows().map((r) => {
-      if (r.group_id === curGroup && slotSet.has(r.timeslot_id) && r.subject_id === d.span.subject_id) {
-        return { ...r, room_id: newRoom, group_id: newGroup };
+    const kept = this.draftRows().filter(
+      (r) => !(slotSet.has(r.timeslot_id) && r.subject_id === d.span.subject_id && r.teacher_id === d.span.teacher_id && r.room_id === d.span.room_id)
+    );
+    const added: OutputRow[] = [];
+    for (const gid of nextGroups) {
+      for (const ts of slotIds) {
+        added.push({
+          group_id: gid,
+          timeslot_id: ts,
+          subject_id: d.span.subject_id,
+          teacher_id: d.span.teacher_id,
+          room_id: newRoom,
+        });
       }
-      return r;
-    });
-    this.draftRows.set(next);
+    }
+    this.draftRows.set([...kept, ...added]);
     this.dirty.set(true);
     this.activeSpan.set(null);
     this.validateDraft(true);
