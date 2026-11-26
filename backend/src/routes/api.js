@@ -391,10 +391,6 @@ router.post('/data/auto-advisors', wrap((_req, res) => {
     });
 
   for (const g of updatedGroups) {
-    if (g.year === 4) {
-      g.advisor = '';
-      continue;
-    }
     const yearPool = [...(teachersByYear.get(g.year) || [])].filter((tid) => !usedTeachers.has(tid));
     const fallbackPool = data.teacher.map((t) => t.teacher_id).filter((tid) => !usedTeachers.has(tid));
     const pool = yearPool.length > 0 ? yearPool : fallbackPool;

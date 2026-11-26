@@ -47,7 +47,7 @@ export function entitiesFor(view, ctx) {
       id: g.group_id,
       title: `กลุ่มเรียน ${g.group_name} (${g.group_id})`,
       subtitle: g.year === 4
-        ? `ฝึกปฏิบัติการสอนในสถานศึกษา (ไม่มีตารางเรียน) · จำนวน ${g.student_count} คน`
+        ? `${g.advisor ? `ครูที่ปรึกษา: ${g.advisor} · ` : ''}ฝึกปฏิบัติการสอนในสถานศึกษา (ไม่มีตารางเรียน) · จำนวน ${g.student_count} คน`
         : `${g.advisor ? `ครูที่ปรึกษา: ${g.advisor} · ` : ''}ห้องประจำ: ${ctx.rooms.get(g.home_room)?.room_name || g.home_room} · จำนวนนักศึกษา ${g.student_count} คน`,
       heading: 'ตารางเรียน',
       info: [
@@ -256,13 +256,28 @@ export function subjectSummary(view, id, rows, ctx) {
   }
 
   // Include Year 4 practicum subjects (e.g. กศ 021037 ปฏิบัติการสอนในสถานศึกษา 4)
-  // in the responsible teachers' subject summary without scheduling any timetable slots.
+  // in the responsible teachers' and Year 4 groups' subject summary without scheduling any timetable slots.
   if (view === 'teacher') {
     for (const sub of ctx.subjects.values()) {
       if (sub.special_mode !== 'practicum_y4') continue;
       if (seen.has(sub.subject_id)) continue;
       const assigned = ctx.teachersBySubject.get(sub.subject_id) || [];
       if (!assigned.includes(id)) continue;
+      seen.add(sub.subject_id);
+      list.push({
+        subject_id: sub.subject_id,
+        name: sub.subject_name,
+        n: Number(sub.credit) || 0,
+        t: 0,
+        p: 0,
+        s: 0,
+        h: 0,
+      });
+    }
+  } else if (view === 'group' && ctx.groups.get(id)?.year === 4) {
+    for (const sub of ctx.subjects.values()) {
+      if (sub.special_mode !== 'practicum_y4') continue;
+      if (seen.has(sub.subject_id)) continue;
       seen.add(sub.subject_id);
       list.push({
         subject_id: sub.subject_id,
