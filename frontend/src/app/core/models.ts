@@ -175,5 +175,5 @@ export interface Grid {
   periods: { period: number; start: string; end: string; isBreak: boolean }[];
   cells: GridSpan[][];
   total: number;
-  subjects?: { list: { subject_id: string; name: string; t: number; p: number; n: number; h: number }[]; total: { t: number; p: number; n: number; h: number } };
+  subjects?: { list: { subject_id: string; name: string; n: number; t: number; p: number; s: number; h: number }[]; total: { n: number; t: number; p: number; s: number; h: number } };
 }

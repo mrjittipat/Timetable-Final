@@ -192,10 +192,10 @@ export async function exportPdf(rows, ctx, { view = 'group', id = null } = {}) {
         const cols = [
           [hx, codeW, 'รหัสวิชา'],
           [hx + codeW, nameW, 'ชื่อรายวิชา'],
-          [hx + codeW + nameW, numW, 'ท.'],
-          [hx + codeW + nameW + numW, numW, 'ป.'],
-          [hx + codeW + nameW + numW * 2, numW, 'น.'],
-          [hx + codeW + nameW + numW * 3, numW, 'ช.'],
+          [hx + codeW + nameW, numW, 'น.'],
+          [hx + codeW + nameW + numW, numW, 'บ.'],
+          [hx + codeW + nameW + numW * 2, numW, 'ป.'],
+          [hx + codeW + nameW + numW * 3, numW, 'ศ.'],
         ];
         for (const [cx, cw, lbl] of cols) {
           doc.rect(cx, y0, cw, 18).stroke();
@@ -208,7 +208,7 @@ export async function exportPdf(rows, ctx, { view = 'group', id = null } = {}) {
           const ry = y0 + 18 + r * rowH;
           const item = subList[h * per + r];
           const vals = item
-            ? [item.subject_id, item.name, String(item.t), String(item.p), String(item.n), String(item.h)]
+            ? [item.subject_id, item.name, String(item.n), String(item.t), String(item.p), String(item.s)]
             : ['', '', '', '', '', ''];
           doc.font(fReg).fontSize(7.5 * scale);
           cols.forEach(([cx, cw], ci) => {
@@ -230,7 +230,7 @@ export async function exportPdf(rows, ctx, { view = 'group', id = null } = {}) {
         if (h === 0) {
           doc.rect(hx, ty, codeW + nameW, 16).stroke();
           doc.text('รวม', hx, ty + 3, { width: codeW + nameW - 4, align: 'right', lineBreak: false });
-          const sums = [summary.total.t, summary.total.p, summary.total.n, summary.total.h];
+          const sums = [summary.total.n, summary.total.t, summary.total.p, summary.total.s];
           sums.forEach((sv, si) => {
             const cx = hx + codeW + nameW + numW * si;
             doc.rect(cx, ty, numW, 16).stroke();
@@ -431,10 +431,10 @@ export async function exportXlsx(rows, ctx, { view = 'all', id = null } = {}) {
       const segs = [
         [0, 2, 'รหัสวิชา'],
         [3, 8, 'ชื่อรายวิชา'],
-        [9, 9, 'ท.'],
-        [10, 10, 'ป.'],
-        [11, 11, 'น.'],
-        [12, 12, 'ช.'],
+        [9, 9, 'น.'],
+        [10, 10, 'บ.'],
+        [11, 11, 'ป.'],
+        [12, 12, 'ศ.'],
       ];
       for (const [s, e, lbl] of segs) {
         if (s < e) ws.mergeCells(1, baseC + s, 1, baseC + e);
@@ -448,7 +448,7 @@ export async function exportXlsx(rows, ctx, { view = 'all', id = null } = {}) {
       for (let r = 0; r < per; r++) {
         const rowNum = 2 + r;
         const item = summary.list[h * per + r];
-        const vals = item ? [item.subject_id, item.name, item.t, item.p, item.n, item.h] : ['', '', '', '', '', ''];
+        const vals = item ? [item.subject_id, item.name, item.n, item.t, item.p, item.s] : ['', '', '', '', '', ''];
         segs.forEach(([s, e], si) => {
           if (s < e) ws.mergeCells(rowNum, baseC + s, rowNum, baseC + e);
           const cell = ws.getCell(rowNum, baseC + s);
@@ -465,7 +465,7 @@ export async function exportXlsx(rows, ctx, { view = 'all', id = null } = {}) {
         ws.getCell(totRow, baseC).value = 'รวม';
         ws.getCell(totRow, baseC).font = { name: 'TH SarabunPSK', size: 12, bold: true };
         ws.getCell(totRow, baseC).alignment = { horizontal: 'right', vertical: 'middle' };
-        [summary.total.t, summary.total.p, summary.total.n, summary.total.h].forEach((sv, si) => {
+        [summary.total.n, summary.total.t, summary.total.p, summary.total.s].forEach((sv, si) => {
           const cell = ws.getCell(totRow, baseC + 9 + si);
           cell.value = sv;
           cell.font = { name: 'TH SarabunPSK', size: 12, bold: true };

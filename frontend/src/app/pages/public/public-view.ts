@@ -37,13 +37,13 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
 
           @if (g.subjects?.list?.length) {
             <div class="card">
-              <div class="card-head"><h3>สรุปรายวิชา (ท. ป. น. ช.)</h3></div>
+              <div class="card-head"><h3>สรุปรายวิชา (น. บ. ป. ศ.)</h3></div>
               <div class="table-wrap">
                 <table class="table">
-                  <thead><tr><th>รหัสวิชา</th><th>ชื่อรายวิชา</th><th>ท.</th><th>ป.</th><th>น.</th><th>ช.</th></tr></thead>
+                  <thead><tr><th>รหัสวิชา</th><th>ชื่อรายวิชา</th><th>น.</th><th>บ.</th><th>ป.</th><th>ศ.</th></tr></thead>
                   <tbody>
                     @for (s of g.subjects!.list; track s.subject_id) {
-                      <tr><td class="mono">{{ s.subject_id }}</td><td>{{ s.name }}</td><td>{{ s.t }}</td><td>{{ s.p }}</td><td>{{ s.n }}</td><td>{{ s.h }}</td></tr>
+                      <tr><td class="mono">{{ s.subject_id }}</td><td>{{ s.name }}</td><td>{{ s.n }}</td><td>{{ s.t }}</td><td>{{ s.p }}</td><td>{{ s.s }}</td></tr>
                     }
                   </tbody>
                 </table>

@@ -234,15 +234,18 @@ export function subjectSummary(view, id, rows, ctx) {
     seen.add(r.subject_id);
     const sub = ctx.subjects.get(r.subject_id);
     if (!sub) continue;
+    const n = Number(sub.credit) || 0;
     const t = Number(sub.theory) || 0;
     const p = Number(sub.practice) || 0;
-    const n = Number(sub.credit) || 0;
+    const m3 = String(sub.credit_raw || '').trim().match(/^(\d+)\s*\(\s*(\d+)\s*[-–]\s*(\d+)\s*[-–]\s*(\d+)\s*\)$/);
+    const s = m3 ? Number(m3[4]) : 0;
     list.push({
       subject_id: sub.subject_id,
       name: sub.subject_name,
+      n,
       t,
       p,
-      n,
+      s,
       h: t + p,
     });
   }
@@ -250,12 +253,13 @@ export function subjectSummary(view, id, rows, ctx) {
   list.sort((a, b) => a.subject_id.localeCompare(b.subject_id, undefined, { numeric: true }));
   const total = list.reduce(
     (acc, item) => ({
+      n: acc.n + item.n,
       t: acc.t + item.t,
       p: acc.p + item.p,
-      n: acc.n + item.n,
+      s: acc.s + item.s,
       h: acc.h + item.h,
     }),
-    { t: 0, p: 0, n: 0, h: 0 }
+    { n: 0, t: 0, p: 0, s: 0, h: 0 }
   );
   return { list, total };
 }

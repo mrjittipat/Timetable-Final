@@ -681,7 +681,7 @@ const FOCUS_LABELS: Record<string, string> = {
 
                 <div class="grid-2">
                   <label class="toggle-box" [class.on]="draft().pdf.showSubjectTable" (mouseenter)="focus.set('pdfSubjectTable')">
-                    <div class="toggle-box-text"><span class="toggle-box-title">ตารางสรุปรายวิชา (ขวาบน)</span><span class="toggle-box-sub">{{ draft().pdf.showSubjectTable ? 'แสดงตาราง ท. ป. น. ช.' : 'ซ่อนและขยายหัวกระดาษเต็มแถบ' }}</span></div>
+                    <div class="toggle-box-text"><span class="toggle-box-title">ตารางสรุปรายวิชา (ขวาบน)</span><span class="toggle-box-sub">{{ draft().pdf.showSubjectTable ? 'แสดงตาราง น. บ. ป. ศ.' : 'ซ่อนและขยายหัวกระดาษเต็มแถบ' }}</span></div>
                     <div class="toggle-box-right"><span class="toggle-state">{{ draft().pdf.showSubjectTable ? 'เปิด' : 'ปิด' }}</span><span class="switch"><input type="checkbox" [disabled]="!auth.isAdmin()" [ngModel]="draft().pdf.showSubjectTable" (ngModelChange)="patchPdf({ showSubjectTable: $event })" /><span></span></span></div>
                   </label>
                   <label class="toggle-box" [class.on]="draft().pdf.showSignatures" (mouseenter)="focus.set('pdfSignatures')">
@@ -985,18 +985,18 @@ const FOCUS_LABELS: Record<string, string> = {
                         <tr [style.background]="pdfResolved().headerBg" [style.color]="pdfResolved().headerText">
                           <th [style.border-color]="pdfResolved().border">รหัสวิชา</th>
                           <th [style.border-color]="pdfResolved().border">ชื่อรายวิชา</th>
-                          <th [style.border-color]="pdfResolved().border">ท.</th><th [style.border-color]="pdfResolved().border">ป.</th><th [style.border-color]="pdfResolved().border">น.</th><th [style.border-color]="pdfResolved().border">ช.</th>
+                          <th [style.border-color]="pdfResolved().border">น.</th><th [style.border-color]="pdfResolved().border">บ.</th><th [style.border-color]="pdfResolved().border">ป.</th><th [style.border-color]="pdfResolved().border">ศ.</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
                           <td [style.border-color]="pdfResolved().border">มศ 041017</td>
                           <td [style.border-color]="pdfResolved().border" style="text-align:left">ภาษาไทยเพื่อการสื่อสารฯ</td>
-                          <td [style.border-color]="pdfResolved().border">3</td><td [style.border-color]="pdfResolved().border">0</td><td [style.border-color]="pdfResolved().border">3</td><td [style.border-color]="pdfResolved().border">3</td>
+                          <td [style.border-color]="pdfResolved().border">3</td><td [style.border-color]="pdfResolved().border">3</td><td [style.border-color]="pdfResolved().border">0</td><td [style.border-color]="pdfResolved().border">6</td>
                         </tr>
                         <tr [style.background]="pdfResolved().dayBg">
                           <td colspan="2" [style.border-color]="pdfResolved().border" style="text-align:right; font-weight:700">รวม</td>
-                          <td [style.border-color]="pdfResolved().border">19</td><td [style.border-color]="pdfResolved().border">8</td><td [style.border-color]="pdfResolved().border">20</td><td [style.border-color]="pdfResolved().border">27</td>
+                          <td [style.border-color]="pdfResolved().border">20</td><td [style.border-color]="pdfResolved().border">19</td><td [style.border-color]="pdfResolved().border">8</td><td [style.border-color]="pdfResolved().border">34</td>
                         </tr>
                       </tbody>
                     </table>
