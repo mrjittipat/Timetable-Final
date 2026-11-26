@@ -5,11 +5,13 @@ import { AuthService } from '../../core/auth';
 import { Api } from '../../core/api';
 import { ThemeService, hexToRgb } from '../../core/theme';
 import { IconComponent } from '../../shared/icon';
+import { TimetableSheetComponent } from '../../shared/timetable-sheet';
+import { Grid } from '../../core/models';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, TimetableSheetComponent],
   template: `
     <div class="page">
       <div class="hero">
@@ -22,6 +24,7 @@ import { IconComponent } from '../../shared/icon';
           @if (auth.isTeacher()) {
             <a routerLink="/my-groups" class="btn primary">กลุ่มเรียนที่รับผิดชอบ</a>
             <a routerLink="/timetable" class="btn">ตารางสอนของฉัน</a>
+            <a routerLink="/teacher-hub" class="btn">คำขอและบันทึกครู</a>
           } @else {
             <a routerLink="/solve" class="btn primary"><app-icon name="play" [size]="16" /> จัดตารางอัตโนมัติ</a>
             <a routerLink="/timetable" class="btn"><app-icon name="calendar" [size]="16" /> ดูตารางเรียน</a>
@@ -29,6 +32,92 @@ import { IconComponent } from '../../shared/icon';
         </div>
       </div>
 
+      @if (auth.isTeacher()) {
+        <div class="grid-4">
+          <div class="card kpi">
+            <div class="kpi-label">อาจารย์ผู้สอน</div>
+            <div class="kpi-val" style="font-size: 18px">{{ myInfo()?.teacher?.teacher_name || auth.user()?.name || '-' }}</div>
+            <div class="kpi-hint">{{ myInfo()?.teacher?.role === 'Leader' ? 'อาจารย์ฝ่ายบริหาร (ประชุมอังคาร 1–4)' : 'อาจารย์ประจำ' }}</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-label">ภาระสอนของฉัน</div>
+            <div class="kpi-val">{{ myGrid()?.total ?? myInfo()?.totalPeriods ?? 0 }}</div>
+            <div class="kpi-hint">คาบ / สัปดาห์</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-label">กลุ่มเรียนที่รับผิดชอบ</div>
+            <div class="kpi-val">{{ myInfo()?.responsibleGroups?.length ?? 0 }}</div>
+            <div class="kpi-hint">กลุ่มเรียนที่สอนในภาคเรียนนี้</div>
+          </div>
+          <div class="card kpi">
+            <div class="kpi-label">รายวิชาที่รับผิดชอบ</div>
+            <div class="kpi-val">{{ myGrid()?.subjects?.list?.length ?? myInfo()?.subjectsCount ?? 0 }}</div>
+            <div class="kpi-hint">คำขอรออนุมัติ {{ pendingRequestsCount() }} รายการ</div>
+          </div>
+        </div>
+
+        @if (myGrid(); as g) {
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h3>ตารางสอนของฉัน</h3>
+                <div class="small muted">{{ g.entity?.title }} · รวม {{ g.total }} คาบ/สัปดาห์</div>
+              </div>
+              <a routerLink="/timetable" class="btn sm ghost">ดูแบบเต็ม / ส่งออก →</a>
+            </div>
+            <div class="card-body">
+              <app-timetable-sheet [grid]="g" view="teacher" [highlightExecMeeting]="!!g.entity?.isLeader" />
+            </div>
+          </div>
+        }
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head">
+              <h3>รายวิชาที่รับผิดชอบ (น. บ. ป. ศ.)</h3>
+            </div>
+            <div class="table-wrap">
+              <table class="table">
+                <thead><tr><th>รหัสวิชา</th><th>ชื่อรายวิชา</th><th>น.</th><th>บ.</th><th>ป.</th><th>ศ.</th></tr></thead>
+                <tbody>
+                  @for (s of myGrid()?.subjects?.list || []; track s.subject_id) {
+                    <tr>
+                      <td class="mono">{{ s.subject_id }}</td>
+                      <td>{{ s.name }}</td>
+                      <td>{{ s.n }}</td>
+                      <td>{{ s.t }}</td>
+                      <td>{{ s.p }}</td>
+                      <td>{{ s.s }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="6" class="muted small" style="text-align: center">ยังไม่มีรายวิชาในตารางสอน</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h3>กลุ่มเรียนที่รับผิดชอบ</h3>
+              <a routerLink="/my-groups" class="btn sm ghost">ดูทั้งหมด →</a>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 8px">
+              @for (grp of myInfo()?.responsibleGroups || []; track grp.group_id) {
+                <div class="row" style="justify-content: space-between; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px">
+                  <div>
+                    <div style="font-weight: 600">{{ grp.group_name }} ({{ grp.group_id }})</div>
+                    <div class="small muted">{{ grp.subjects?.length || 0 }} วิชา · {{ grp.periods }} คาบ/สัปดาห์</div>
+                  </div>
+                  <a [routerLink]="['/timetable']" [queryParams]="{ view: 'group', id: grp.group_id }" class="btn sm">ดูตาราง</a>
+                </div>
+              } @empty {
+                <div class="muted small">ยังไม่มีกลุ่มเรียนที่รับผิดชอบในตารางล่าสุด</div>
+              }
+            </div>
+          </div>
+        </div>
+      } @else {
       @if (state.data(); as d) {
         <div class="grid-5">
           <div class="card kpi">
@@ -244,6 +333,7 @@ import { IconComponent } from '../../shared/icon';
           </div>
         </div>
       </div>
+      }
     </div>
   `,
   styles: `
@@ -300,9 +390,16 @@ export class DashboardPage implements OnInit {
   private api = inject(Api);
 
   stats = signal<any>(null);
+  myInfo = signal<any>(null);
+  myGrid = signal<Grid | null>(null);
+  myRequests = signal<any[]>([]);
   tblTeacher = signal(false);
   tblHeat = signal(false);
   tblRoom = signal(false);
+
+  pendingRequestsCount = computed(() =>
+    this.myRequests().filter((r) => r.status === 'pending').length
+  );
 
   maxTeacherLoad = computed(() => {
     const list = this.stats()?.teacherLoad || [];
@@ -321,6 +418,25 @@ export class DashboardPage implements OnInit {
   }
 
   async loadStats() {
+    if (this.auth.isTeacher()) {
+      try {
+        const [info, reqs] = await Promise.all([
+          this.api.getMyGroups(),
+          this.api.getTeacherRequests(),
+        ]);
+        this.myInfo.set(info);
+        this.myRequests.set(reqs.requests || []);
+        const tid = this.auth.user()?.teacher_id;
+        if (tid && this.state.hasTimetable()) {
+          this.myGrid.set(await this.api.getGrid('teacher', tid));
+        } else {
+          this.myGrid.set(null);
+        }
+      } catch {
+        // ignore
+      }
+      return;
+    }
     try {
       this.stats.set(await this.api.getStats());
     } catch {

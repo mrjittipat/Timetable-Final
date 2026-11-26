@@ -47,9 +47,14 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
         <div class="card-body" style="display: flex; flex-direction: column; gap: 12px">
           <div class="row">
             <div class="segmented">
-              <button type="button" [class.active]="view() === 'group'" (click)="switchView('group')">กลุ่มเรียน</button>
-              <button type="button" [class.active]="view() === 'teacher'" (click)="switchView('teacher')">อาจารย์ผู้สอน</button>
-              <button type="button" [class.active]="view() === 'room'" (click)="switchView('room')">ห้อง / สนาม</button>
+              @if (auth.isTeacher()) {
+                <button type="button" [class.active]="view() === 'teacher'" (click)="switchView('teacher')">ตารางสอนของฉัน</button>
+                <button type="button" [class.active]="view() === 'group'" (click)="switchView('group')">กลุ่มเรียนที่รับผิดชอบ</button>
+              } @else {
+                <button type="button" [class.active]="view() === 'group'" (click)="switchView('group')">กลุ่มเรียน</button>
+                <button type="button" [class.active]="view() === 'teacher'" (click)="switchView('teacher')">อาจารย์ผู้สอน</button>
+                <button type="button" [class.active]="view() === 'room'" (click)="switchView('room')">ห้อง / สนาม</button>
+              }
             </div>
 
             <!-- Searchable Entity Combobox -->
@@ -86,7 +91,7 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
                       }
                     </div>
                     <div class="combo-list">
-                      @if (!entityQuery().trim()) {
+                      @if (!entityQuery().trim() && !auth.isTeacher()) {
                         <button type="button" class="combo-opt" [class.active]="selectedId() === '__all__'" (click)="pickEntity('__all__')">
                           <span>— แสดงทั้งหมด ({{ allLabel() }}) —</span>
                         </button>
@@ -123,7 +128,7 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
 
           <div class="row">
             <input class="input" style="max-width: 320px" [(ngModel)]="search" placeholder="ค้นหา/ไฮไลต์ วิชา อาจารย์ ห้อง สนาม ในตาราง…" />
-            @if (view() === 'teacher') {
+            @if (view() === 'teacher' && !auth.isTeacher()) {
               <button type="button" class="btn sm" [class.primary]="onlyExec()" (click)="onlyExec.update(v => !v)">
                 ★ เฉพาะอาจารย์ฝ่ายบริหาร (7 คน)
               </button>
@@ -392,8 +397,32 @@ export class TimetablePage implements OnInit {
   }
 
   async ngOnInit() {
-    if (this.qView()) this.view.set(this.qView()!);
     const ents = await this.api.getEntities();
+    if (this.auth.isTeacher()) {
+      const tid = this.auth.user()?.teacher_id || '';
+      let allowedGroupIds = new Set<string>();
+      try {
+        const my = await this.api.getMyGroups();
+        allowedGroupIds = new Set((my.responsibleGroups || []).map((g: any) => g.group_id));
+      } catch {
+        // ignore
+      }
+      const scoped: Record<View, EntityRef[]> = {
+        teacher: (ents.teacher || []).filter((e) => e.id === tid),
+        group: (ents.group || []).filter((e) => allowedGroupIds.has(e.id)),
+        room: [],
+      };
+      this.entities.set(scoped);
+      const wantView: View = this.qView() === 'group' && scoped.group.length > 0 ? 'group' : 'teacher';
+      this.view.set(wantView);
+      const list = scoped[wantView] || [];
+      const pick = this.qId() && list.some((e) => e.id === this.qId()) ? this.qId()! : (list[0]?.id || '');
+      this.selectedId.set(pick);
+      if (pick) await this.loadGrids();
+      return;
+    }
+
+    if (this.qView()) this.view.set(this.qView()!);
     this.entities.set(ents);
     const list = ents[this.view()] || [];
     const pick = this.qId() && list.some((e) => e.id === this.qId()) ? this.qId()! : (list[0]?.id || '__all__');
@@ -418,8 +447,10 @@ export class TimetablePage implements OnInit {
     this.dropdownOpen.set(false);
     this.entityQuery.set('');
     const list = this.entities()[v] || [];
-    this.selectedId.set(list[0]?.id || '__all__');
-    await this.loadGrids();
+    const nextId = list[0]?.id || (this.auth.isTeacher() ? '' : '__all__');
+    this.selectedId.set(nextId);
+    if (nextId) await this.loadGrids();
+    else { this.singleGrid.set(null); this.allGrids.set([]); }
   }
 
   async selectEntity(id: string) {

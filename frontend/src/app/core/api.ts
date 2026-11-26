@@ -66,6 +66,7 @@ export class Api {
   getMyGroups() { return firstValueFrom(this.http.get<any>('/api/teacher/my-groups')); }
   getTeacherRequests() { return firstValueFrom(this.http.get<any>('/api/teacher/requests')); }
   createTeacherRequest(body: any) { return firstValueFrom(this.http.post<any>('/api/teacher/requests', body)); }
+  deleteTeacherRequest(id: string) { return firstValueFrom(this.http.delete<any>(`/api/teacher/requests/${id}`)); }
   approveTeacherRequest(id: string, adminNote = '') { return firstValueFrom(this.http.post<any>(`/api/teacher/requests/${id}/approve`, { adminNote })); }
   rejectTeacherRequest(id: string, adminNote = '') { return firstValueFrom(this.http.post<any>(`/api/teacher/requests/${id}/reject`, { adminNote })); }
   getTeacherNotes() { return firstValueFrom(this.http.get<any>('/api/teacher/notes')); }
