@@ -5,13 +5,12 @@ import { AuthService } from '../../core/auth';
 import { Api } from '../../core/api';
 import { ThemeService, hexToRgb } from '../../core/theme';
 import { IconComponent } from '../../shared/icon';
-import { TimetableSheetComponent } from '../../shared/timetable-sheet';
 import { Grid } from '../../core/models';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, IconComponent, TimetableSheetComponent],
+  imports: [RouterLink, IconComponent],
   template: `
     <div class="page">
       <div class="hero">
@@ -56,26 +55,101 @@ import { Grid } from '../../core/models';
           </div>
         </div>
 
-        @if (myGrid(); as g) {
+        <div class="grid-2">
+          <!-- Teacher Chart 1: Daily Teaching Load -->
           <div class="card">
             <div class="card-head">
-              <div>
-                <h3>ตารางสอนของฉัน</h3>
-                <div class="small muted">{{ g.entity?.title }} · รวม {{ g.total }} คาบ/สัปดาห์</div>
-              </div>
-              <a routerLink="/timetable" class="btn sm ghost">ดูแบบเต็ม / ส่งออก →</a>
+              <h3>ภาระสอนรายวันของฉัน (คาบ/วัน)</h3>
+              <button class="btn sm ghost" type="button" (click)="tblMyDay.update(v => !v)">
+                {{ tblMyDay() ? 'กราฟ' : 'ตาราง' }}
+              </button>
             </div>
             <div class="card-body">
-              <app-timetable-sheet [grid]="g" view="teacher" [highlightExecMeeting]="!!g.entity?.isLeader" />
+              @if (tblMyDay()) {
+                <div class="table-wrap">
+                  <table class="table">
+                    <thead><tr><th>วัน</th><th>จำนวนคาบสอน</th><th>สัดส่วน</th></tr></thead>
+                    <tbody>
+                      @for (d of myDailyLoad(); track d.key) {
+                        <tr>
+                          <td><strong>วัน{{ d.label }}</strong></td>
+                          <td>{{ d.periods }} คาบ</td>
+                          <td>{{ d.pct }}%</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="bars" role="img" aria-label="ภาระสอนรายวันของฉัน">
+                  @for (d of myDailyLoad(); track d.key) {
+                    <div class="bar-row" [title]="'วัน' + d.label + ': ' + d.periods + ' คาบ'">
+                      <div class="bar-lbl">วัน{{ d.label }}</div>
+                      <div class="bar-track">
+                        <div class="bar-fill" [style.width.%]="(d.periods / maxMyDaily()) * 100"></div>
+                      </div>
+                      <div class="bar-num">{{ d.periods }}</div>
+                    </div>
+                  }
+                </div>
+              }
             </div>
           </div>
-        }
 
-        <div class="grid-2">
+          <!-- Teacher Chart 2: Load by Responsible Group -->
           <div class="card">
             <div class="card-head">
-              <h3>รายวิชาที่รับผิดชอบ (น. บ. ป. ศ.)</h3>
+              <h3>ภาระสอนแยกตามกลุ่มเรียน (คาบ/สัปดาห์)</h3>
+              <button class="btn sm ghost" type="button" (click)="tblMyGroup.update(v => !v)">
+                {{ tblMyGroup() ? 'กราฟ' : 'ตาราง' }}
+              </button>
             </div>
+            <div class="card-body">
+              @if (tblMyGroup()) {
+                <div class="table-wrap" style="max-height: 260px">
+                  <table class="table">
+                    <thead><tr><th>กลุ่มเรียน</th><th>จำนวนวิชา</th><th>คาบ/สัปดาห์</th></tr></thead>
+                    <tbody>
+                      @for (grp of myInfo()?.responsibleGroups || []; track grp.group_id) {
+                        <tr>
+                          <td><strong>{{ grp.group_name }}</strong> <span class="mono small muted">({{ grp.group_id }})</span></td>
+                          <td>{{ grp.subjects?.length || 0 }}</td>
+                          <td><strong>{{ grp.periods }}</strong></td>
+                        </tr>
+                      } @empty {
+                        <tr><td colspan="3" class="muted small" style="text-align: center">ยังไม่มีข้อมูล</td></tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="bars scroll-bars" role="img" aria-label="ภาระสอนแยกตามกลุ่มเรียน">
+                  @for (grp of myInfo()?.responsibleGroups || []; track grp.group_id) {
+                    <div class="bar-row" [title]="grp.group_name + ': ' + grp.periods + ' คาบ'">
+                      <div class="bar-lbl">{{ grp.group_name }} ({{ grp.group_id }})</div>
+                      <div class="bar-track">
+                        <div class="bar-fill" [style.width.%]="(grp.periods / maxMyGroup()) * 100"></div>
+                      </div>
+                      <div class="bar-num">{{ grp.periods }}</div>
+                    </div>
+                  } @empty {
+                    <div class="muted small">ยังไม่มีข้อมูลในตารางล่าสุด</div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Teacher Chart 3: Subjects Summary -->
+        <div class="card">
+          <div class="card-head">
+            <h3>สรุปรายวิชาที่รับผิดชอบ (น. บ. ป. ศ.)</h3>
+            <button class="btn sm ghost" type="button" (click)="tblMySubject.update(v => !v)">
+              {{ tblMySubject() ? 'ตาราง' : 'กราฟ' }}
+            </button>
+          </div>
+          @if (!tblMySubject()) {
             <div class="table-wrap">
               <table class="table">
                 <thead><tr><th>รหัสวิชา</th><th>ชื่อรายวิชา</th><th>น.</th><th>บ.</th><th>ป.</th><th>ศ.</th></tr></thead>
@@ -95,27 +169,23 @@ import { Grid } from '../../core/models';
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head">
-              <h3>กลุ่มเรียนที่รับผิดชอบ</h3>
-              <a routerLink="/my-groups" class="btn sm ghost">ดูทั้งหมด →</a>
-            </div>
-            <div class="card-body" style="display: flex; flex-direction: column; gap: 8px">
-              @for (grp of myInfo()?.responsibleGroups || []; track grp.group_id) {
-                <div class="row" style="justify-content: space-between; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px">
-                  <div>
-                    <div style="font-weight: 600">{{ grp.group_name }} ({{ grp.group_id }})</div>
-                    <div class="small muted">{{ grp.subjects?.length || 0 }} วิชา · {{ grp.periods }} คาบ/สัปดาห์</div>
+          } @else {
+            <div class="card-body">
+              <div class="bars scroll-bars" role="img" aria-label="ชั่วโมงสอนแยกรายวิชา">
+                @for (s of myGrid()?.subjects?.list || []; track s.subject_id) {
+                  <div class="bar-row" [title]="s.subject_id + ' ' + s.name + ': ' + (s.t + s.p) + ' คาบ'">
+                    <div class="bar-lbl">{{ s.subject_id }} {{ s.name }}</div>
+                    <div class="bar-track">
+                      <div class="bar-fill" [style.width.%]="((s.t + s.p) / maxMySubject()) * 100"></div>
+                    </div>
+                    <div class="bar-num">{{ s.t + s.p }}</div>
                   </div>
-                  <a [routerLink]="['/timetable']" [queryParams]="{ view: 'group', id: grp.group_id }" class="btn sm">ดูตาราง</a>
-                </div>
-              } @empty {
-                <div class="muted small">ยังไม่มีกลุ่มเรียนที่รับผิดชอบในตารางล่าสุด</div>
-              }
+                } @empty {
+                  <div class="muted small">ยังไม่มีรายวิชาในตารางสอน</div>
+                }
+              </div>
             </div>
-          </div>
+          }
         </div>
       } @else {
       @if (state.data(); as d) {
@@ -396,10 +466,44 @@ export class DashboardPage implements OnInit {
   tblTeacher = signal(false);
   tblHeat = signal(false);
   tblRoom = signal(false);
+  tblMyDay = signal(false);
+  tblMyGroup = signal(false);
+  tblMySubject = signal(false);
 
   pendingRequestsCount = computed(() =>
     this.myRequests().filter((r) => r.status === 'pending').length
   );
+
+  myDailyLoad = computed(() => {
+    const g = this.myGrid();
+    const days = g?.days || [
+      { key: 'Mon', label: 'จันทร์' },
+      { key: 'Tue', label: 'อังคาร' },
+      { key: 'Wed', label: 'พุธ' },
+      { key: 'Thu', label: 'พฤหัสบดี' },
+      { key: 'Fri', label: 'ศุกร์' },
+    ];
+    const total = Math.max(1, g?.total || 0);
+    return days.map((d, di) => {
+      const periods = (g?.cells?.[di] || []).reduce((sum, sp) => sum + (sp.span || 1), 0);
+      return {
+        key: d.key,
+        label: d.label,
+        periods,
+        pct: g?.total ? Math.round((periods / total) * 100) : 0,
+      };
+    });
+  });
+
+  maxMyDaily = computed(() => Math.max(1, ...this.myDailyLoad().map((d) => d.periods)));
+  maxMyGroup = computed(() => {
+    const list = this.myInfo()?.responsibleGroups || [];
+    return Math.max(1, ...list.map((g: any) => Number(g.periods) || 0));
+  });
+  maxMySubject = computed(() => {
+    const list = this.myGrid()?.subjects?.list || [];
+    return Math.max(1, ...list.map((s) => (Number(s.t) || 0) + (Number(s.p) || 0)));
+  });
 
   maxTeacherLoad = computed(() => {
     const list = this.stats()?.teacherLoad || [];
