@@ -48,6 +48,18 @@ function resolveEntities(ctx, view = 'group', id = null) {
   return out;
 }
 
+function totalPeriodsLabel(grid) {
+  let special = 0;
+  for (const daySpans of grid.cells || []) {
+    for (const sp of daySpans || []) {
+      if (sp.subject_id === 'ADVISOR' || sp.subject_id === 'ACTIVITY') special += sp.span || 1;
+    }
+  }
+  const academic = Math.max(0, (grid.total || 0) - special);
+  if (special > 0) return `รวม ${academic} คาบวิชา (+${special} ที่ปรึกษา/กิจกรรม)`;
+  return `รวม ${grid.total || 0} คาบ/สัปดาห์`;
+}
+
 function cellLines(view, span) {
   const code = span.display_code || span.subject_id;
   let who = '';
@@ -238,7 +250,7 @@ export async function exportPdf(rows, ctx, { view = 'group', id = null } = {}) {
           });
         } else {
           doc.rect(hx, ty, halfW, 16).stroke();
-          doc.text(`รวม ${grid.total} คาบ/สัปดาห์`, hx, ty + 3, { width: halfW, align: 'center', lineBreak: false });
+          doc.text(totalPeriodsLabel(grid), hx, ty + 3, { width: halfW, align: 'center', lineBreak: false });
         }
       }
     }
@@ -473,7 +485,7 @@ export async function exportXlsx(rows, ctx, { view = 'all', id = null } = {}) {
         });
       } else {
         ws.mergeCells(totRow, baseC, totRow, baseC + 12);
-        ws.getCell(totRow, baseC).value = `รวม ${grid.total} คาบ/สัปดาห์`;
+        ws.getCell(totRow, baseC).value = totalPeriodsLabel(grid);
         ws.getCell(totRow, baseC).font = { name: 'TH SarabunPSK', size: 12, bold: true };
         ws.getCell(totRow, baseC).alignment = { horizontal: 'center', vertical: 'middle' };
       }
