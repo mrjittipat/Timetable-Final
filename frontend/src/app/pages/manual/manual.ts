@@ -166,7 +166,7 @@ const PERIODS = [
                                 [title]="cellConflictText(d.key, cell.period)"
                                 (dragover)="$event.preventDefault()"
                                 (drop)="onCellDrop(d.key, cell.period)"
-                                (click)="onCellClick(d.key, cell.period)">
+                                (click)="onSpanClick(d.key, d.label, cell.span)">
                               <div class="m-span"
                                    [class.dragging]="isDraggingSpan(d.key, cell.span.start)"
                                    [attr.draggable]="auth.isAdmin() && !cell.span.isElectiveCohort"
@@ -332,6 +332,69 @@ const PERIODS = [
         </aside>
       </div>
     </div>
+
+    <!-- Span Detail & Edit Modal -->
+    @if (activeSpan(); as detail) {
+      <div class="scrim" (click)="activeSpan.set(null)">
+        <div class="dialog" (click)="$event.stopPropagation()">
+          <div class="dialog-head">
+            <h3>รายละเอียดคาบเรียน</h3>
+            <button class="btn icon ghost" type="button" (click)="activeSpan.set(null)"><app-icon name="x" [size]="18" /></button>
+          </div>
+          <div class="dialog-body">
+            <div><strong>รายวิชา:</strong> {{ detail.span.display_code }}@if (detail.span.subject_name && detail.span.subject_name !== detail.span.display_code) { — {{ detail.span.subject_name }} }</div>
+            <div><strong>เวลา:</strong> วัน{{ detail.dayLabel }} คาบ {{ detail.span.start }}@if (detail.span.span > 1) { –{{ detail.span.start + detail.span.span - 1 }} } ({{ detail.span.span }} คาบ)</div>
+            <div><strong>อาจารย์ผู้สอน:</strong> {{ detail.span.teacher_name }}</div>
+
+            @if (auth.isAdmin() && !detail.span.isElectiveCohort) {
+              <div class="edit-box">
+                <div style="font-weight: 600; margin-bottom: 8px">แก้ไขข้อมูลคาบเรียน</div>
+                <div class="grid-2">
+                  <div class="field">
+                    <label>ห้อง / สนามหลัก</label>
+                    <select class="input" [(ngModel)]="editRoom1">
+                      @for (r of allRooms(); track r['room_id']) {
+                        <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>สนาม / ห้องเสริม (ถ้ามี)</label>
+                    <select class="input" [(ngModel)]="editRoom2">
+                      <option value="">— ไม่มี —</option>
+                      @for (r of allRooms(); track r['room_id']) {
+                        <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field" style="grid-column: 1 / -1">
+                    <label>กลุ่มเรียน</label>
+                    <select class="input" [(ngModel)]="editGroupId">
+                      @for (g of groups(); track g.id) {
+                        <option [value]="g.id">{{ g.title }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div><strong>ห้อง/สนาม:</strong> {{ detail.span.room_name }}</div>
+              <div><strong>กลุ่มเรียน:</strong> {{ currentGroupTitle() }}</div>
+            }
+          </div>
+          <div class="dialog-foot">
+            @if (auth.isAdmin() && !detail.span.isElectiveCohort) {
+              <button class="btn danger sm" type="button" (click)="removeSpan(detail.day, detail.span); activeSpan.set(null)">ลบคาบนี้</button>
+              <span class="spacer"></span>
+              <button class="btn" type="button" (click)="activeSpan.set(null)">ปิด</button>
+              <button class="btn primary" type="button" (click)="saveSpanEdit()">บันทึกการแก้ไข</button>
+            } @else {
+              <button class="btn" type="button" (click)="activeSpan.set(null)">ปิด</button>
+            }
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: `
     .seed-bar { padding: 12px 16px; }
@@ -433,6 +496,12 @@ export class ManualPage implements OnInit {
   // Dragging state (either from palette or an existing span on the grid)
   dragMode = signal<'none' | 'palette' | 'span'>('none');
   dragSpanInfo = signal<{ day: string; span: DraftSpan } | null>(null);
+
+  // Span detail/edit modal state
+  activeSpan = signal<{ day: string; dayLabel: string; span: DraftSpan } | null>(null);
+  editRoom1 = '';
+  editRoom2 = '';
+  editGroupId = '';
 
   currentSeed = computed(() =>
     this.dirty() && this.draftSeed() !== null
@@ -829,6 +898,48 @@ export class ManualPage implements OnInit {
   private pushUndo() {
     const snap = this.draftRows().map((r) => ({ ...r }));
     this.undoStack.update((s) => [...s.slice(-29), snap]);
+  }
+
+  onSpanClick(day: string, dayLabel: string, span: DraftSpan) {
+    if (this.auth.isAdmin() && this.selectedSub()) {
+      this.placeBrushAt(day, span.start);
+      return;
+    }
+    const rParts = String(span.room_id || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
+    this.editRoom1 = rParts[0] || '';
+    this.editRoom2 = rParts[1] || '';
+    this.editGroupId = this.groupId();
+    this.activeSpan.set({ day, dayLabel, span });
+  }
+
+  saveSpanEdit() {
+    const d = this.activeSpan();
+    if (!d) return;
+    const roomIds = [this.editRoom1, this.editRoom2].filter(Boolean);
+    if (roomIds.length === 0) {
+      this.toasts.error('กรุณาเลือกห้อง/สนามอย่างน้อย 1 แห่ง');
+      return;
+    }
+    const newRoom = [...new Set(roomIds)].join('+');
+    const newGroup = this.editGroupId || this.groupId();
+    const curGroup = this.groupId();
+    const slotSet = new Set<string>();
+    for (let k = 0; k < d.span.span; k++) {
+      const ts = this.slotByDayPeriod().get(`${d.day}|${d.span.start + k}`);
+      if (ts) slotSet.add(ts);
+    }
+    this.pushUndo();
+    const next = this.draftRows().map((r) => {
+      if (r.group_id === curGroup && slotSet.has(r.timeslot_id) && r.subject_id === d.span.subject_id) {
+        return { ...r, room_id: newRoom, group_id: newGroup };
+      }
+      return r;
+    });
+    this.draftRows.set(next);
+    this.dirty.set(true);
+    this.activeSpan.set(null);
+    this.validateDraft(true);
+    this.toasts.success('อัปเดตข้อมูลคาบเรียนแล้ว (อย่าลืมกดบันทึกตารางใช้งานจริง)');
   }
 
   onCellClick(day: string, period: number) {

@@ -88,7 +88,7 @@ export function moveSpan(rows, ctx, { view, id, fromDay, fromPeriod, length = 1,
   });
 }
 
-export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id }) {
+export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id }) {
   const len = Math.max(1, Number(length) || 1);
   const slots = resolveWindow(ctx, day, Number(period), len);
   if (!slots) throw httpError(400, 'ช่วงคาบไม่ถูกต้อง');
@@ -109,6 +109,7 @@ export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher
       ...r,
       teacher_id: teacher_id != null && teacher_id !== '' ? String(teacher_id).trim() : r.teacher_id,
       room_id: room_id != null && room_id !== '' ? String(room_id).trim() : r.room_id,
+      group_id: group_id != null && group_id !== '' && !ctx.electiveSets.has(r.group_id) ? String(group_id).trim() : r.group_id,
     };
   });
 }

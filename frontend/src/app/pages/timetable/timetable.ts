@@ -207,8 +207,49 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
             <div><strong>รายวิชา:</strong> {{ detail.span.display_code || detail.span.subject_id }}@if (detail.span.subject_name && detail.span.subject_name !== (detail.span.display_code || detail.span.subject_id)) { — {{ detail.span.subject_name }} }</div>
             <div><strong>เวลา:</strong> วัน{{ detail.dayLabel }} คาบ {{ detail.span.start }}@if (detail.span.span > 1) { –{{ detail.span.start + detail.span.span - 1 }} } ({{ detail.span.span }} คาบ)</div>
             <div><strong>อาจารย์ผู้สอน:</strong> {{ detail.span.teacher }}</div>
-            <div><strong>ห้อง/สนาม:</strong> {{ detail.span.room_name || detail.span.room }}</div>
-            <div><strong>กลุ่มเรียน:</strong> {{ (detail.span.group_labels || detail.span.groups).join(', ') }}</div>
+
+            @if (auth.isAdmin() && selectedId() !== '__all__' && detail.span.room !== '-') {
+              <div class="edit-box">
+                <div style="font-weight: 600; margin-bottom: 8px">แก้ไขข้อมูลคาบเรียน</div>
+                <div class="grid-2">
+                  <div class="field">
+                    <label>ห้อง / สนามหลัก</label>
+                    <select class="input" [(ngModel)]="editRoom1">
+                      @for (r of allRooms(); track r['room_id']) {
+                        <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>สนาม / ห้องเสริม (ถ้ามี)</label>
+                    <select class="input" [(ngModel)]="editRoom2">
+                      <option value="">— ไม่มี —</option>
+                      @for (r of allRooms(); track r['room_id']) {
+                        <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
+                      }
+                    </select>
+                  </div>
+                  @if (canEditGroup(detail.span)) {
+                    <div class="field" style="grid-column: 1 / -1">
+                      <label>กลุ่มเรียน</label>
+                      <select class="input" [(ngModel)]="editGroupId">
+                        @for (g of allActiveGroups(); track g['group_id']) {
+                          <option [value]="g['group_id']">{{ g['group_name'] }} ({{ g['group_id'] }})</option>
+                        }
+                      </select>
+                    </div>
+                  }
+                </div>
+                <div class="row" style="justify-content: flex-end; margin-top: 10px">
+                  <button class="btn sm primary" type="button" [disabled]="savingEdit()" (click)="saveSpanEdit()">
+                    {{ savingEdit() ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข' }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div><strong>ห้อง/สนาม:</strong> {{ detail.span.room_name || detail.span.room }}</div>
+              <div><strong>กลุ่มเรียน:</strong> {{ (detail.span.group_labels || detail.span.groups).join(', ') }}</div>
+            }
 
             @if (auth.isAdmin() && selectedId() !== '__all__' && detail.span.subject_id !== 'ADVISOR' && detail.span.subject_id !== 'ACTIVITY') {
               <div class="move-box">
@@ -315,7 +356,14 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
     }
     .exec-card { border-color: #f59e0b; }
     .exec-head { background: linear-gradient(90deg, #fffbeb 0%, #ffffff 70%); }
-    .move-box { margin-top: 10px; padding: 12px; background: var(--maroon-50); border: 1px solid var(--border); border-radius: 10px; }
+    .move-box, .edit-box { margin-top: 10px; padding: 12px; background: var(--maroon-50); border: 1px solid var(--border); border-radius: 10px; }
+
+    @media (max-width: 640px) {
+      .combo-menu { max-height: 60dvh; }
+      .combo-list { max-height: 45dvh; }
+      .page-head .row { width: 100%; }
+      .card-body > .row > .row { min-width: 0 !important; width: 100%; }
+    }
   `,
 })
 export class TimetablePage implements OnInit {
@@ -342,9 +390,16 @@ export class TimetablePage implements OnInit {
   activeSpan = signal<{ day: string; dayLabel: string; span: GridSpan } | null>(null);
   moveTargets = signal<any[]>([]);
   loadingTargets = signal(false);
+  savingEdit = signal(false);
+  editRoom1 = '';
+  editRoom2 = '';
+  editGroupId = '';
   undoStack = signal<OutputRow[][]>([]);
   pdfUrl = signal<string | null>(null);
   shareInfo = signal<any>(null);
+
+  allRooms = computed(() => this.state.data()?.data?.['room'] || []);
+  allActiveGroups = computed(() => (this.state.data()?.data?.['student_group'] || []).filter((g: any) => Number(g['year']) !== 4));
 
   currentEntities = computed(() => {
     const list = this.entities()[this.view()] || [];
@@ -500,8 +555,19 @@ export class TimetablePage implements OnInit {
     this.toasts.success('คัดลอกลิงก์แล้ว');
   }
 
+  canEditGroup(sp: GridSpan) {
+    const grps = sp.groups || [];
+    if (grps.length !== 1) return false;
+    const gid = grps[0];
+    return !['Y2_EL', 'Y3_EL1', 'Y3_EL2'].includes(gid);
+  }
+
   async onSpanClick(ev: { day: string; dayLabel: string; span: GridSpan }) {
     this.activeSpan.set(ev);
+    const rParts = String(ev.span.room || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
+    this.editRoom1 = rParts[0] || '';
+    this.editRoom2 = rParts[1] || '';
+    this.editGroupId = (ev.span.groups || [])[0] || '';
     this.moveTargets.set([]);
     if (!this.auth.isAdmin() || this.selectedId() === '__all__') return;
     if (ev.span.subject_id === 'ADVISOR' || ev.span.subject_id === 'ACTIVITY') return;
@@ -517,6 +583,38 @@ export class TimetablePage implements OnInit {
       this.moveTargets.set(res.targets || []);
     } finally {
       this.loadingTargets.set(false);
+    }
+  }
+
+  async saveSpanEdit() {
+    const d = this.activeSpan();
+    if (!d) return;
+    const roomIds = [this.editRoom1, this.editRoom2].filter(Boolean);
+    if (roomIds.length === 0) {
+      this.toasts.error('กรุณาเลือกห้อง/สนามอย่างน้อย 1 แห่ง');
+      return;
+    }
+    this.savingEdit.set(true);
+    try {
+      const prev = this.state.timetable()?.rows || [];
+      this.undoStack.update((s) => [...s.slice(-9), prev]);
+      await this.api.editSpan({
+        view: this.view(),
+        id: this.selectedId(),
+        day: d.day,
+        period: d.span.start,
+        length: d.span.span,
+        room_id: [...new Set(roomIds)].join('+'),
+        group_id: this.canEditGroup(d.span) ? this.editGroupId : undefined,
+      });
+      this.activeSpan.set(null);
+      await this.state.refreshTimetable();
+      await this.loadGrids();
+      this.toasts.success('อัปเดตข้อมูลคาบเรียนเรียบร้อยแล้ว');
+    } catch (err) {
+      this.toasts.error(this.api.errorMessage(err));
+    } finally {
+      this.savingEdit.set(false);
     }
   }
 
