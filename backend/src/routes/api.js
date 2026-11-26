@@ -829,7 +829,43 @@ router.get('/teacher/my-groups', (req, res) => {
   res.json({ teacher, totalPeriods: totalSlots, subjectsCount: subjectsTaught.length, responsibleGroups });
 });
 
-router.get('/teacher/requests', (req, res) => res.json({ requests: hub.listRequests(req.user) }));
+function evaluateTeacherRequest(item, tt, data, cfg, ctx) {
+  if (!item || item.status !== 'pending') return null;
+  if (!tt || !tt.rows || tt.rows.length === 0) {
+    return { feasible: false, reasons: ['ยังไม่มีตารางเรียนในระบบ'] };
+  }
+  try {
+    const nextRows = item.kind === 'edit'
+      ? editSpan(tt.rows, ctx, { view: 'teacher', id: item.teacher_id, day: item.fromDay, period: item.fromPeriod, length: item.length, room_id: item.room_id })
+      : moveSpan(tt.rows, ctx, { view: 'teacher', id: item.teacher_id, fromDay: item.fromDay, fromPeriod: item.fromPeriod, length: item.length, toDay: item.toDay, toPeriod: item.toPeriod });
+    const val = validate(nextRows, data, cfg, ctx);
+    if (val.passed) return { feasible: true, reasons: [] };
+    const reasons = [];
+    for (const ch of val.checks || []) {
+      if (!ch.passed) {
+        const sample = (ch.violations || [])[0]?.message;
+        reasons.push(sample ? `${ch.name}: ${sample}` : ch.name);
+        if (reasons.length >= 4) break;
+      }
+    }
+    return { feasible: false, reasons: reasons.length ? reasons : ['ขัดต่อเงื่อนไขการจัดตาราง'] };
+  } catch (err) {
+    return { feasible: false, reasons: [err.message || 'ไม่สามารถย้ายไปยังช่วงเวลานี้ได้'] };
+  }
+}
+
+router.get('/teacher/requests', (req, res) => {
+  const list = hub.listRequests(req.user);
+  const tt = store.getTimetable();
+  const cfg = loadConfig();
+  const data = store.getData();
+  const ctx = buildContext(data, cfg);
+  const enriched = list.map((item) => ({
+    ...item,
+    check: evaluateTeacherRequest(item, tt, data, cfg, ctx),
+  }));
+  res.json({ requests: enriched });
+});
 router.post('/teacher/requests', wrap((req, res) => res.status(201).json({ request: hub.createRequest(req.user, req.body || {}) })));
 router.delete('/teacher/requests/:id', wrap((req, res) => res.json(hub.deleteRequest(req.user, req.params.id))));
 router.post('/teacher/requests/check', wrap((req, res) => {
@@ -837,15 +873,13 @@ router.post('/teacher/requests/check', wrap((req, res) => {
   const cfg = loadConfig();
   const data = store.getData();
   const ctx = buildContext(data, cfg);
-  try {
-    const nextRows = req.body.kind === 'edit'
-      ? editSpan(tt.rows, ctx, { ...req.body, view: 'teacher', id: req.body.teacher_id || req.user.teacher_id })
-      : moveSpan(tt.rows, ctx, { ...req.body, view: 'teacher', id: req.body.teacher_id || req.user.teacher_id });
-    const val = validate(nextRows, data, cfg, ctx);
-    res.json({ ok: val.passed, validation: val });
-  } catch (err) {
-    res.json({ ok: false, message: err.message });
-  }
+  const item = {
+    ...req.body,
+    teacher_id: req.body.teacher_id || req.user.teacher_id,
+    status: 'pending',
+  };
+  const check = evaluateTeacherRequest(item, tt, data, cfg, ctx);
+  res.json({ ok: Boolean(check?.feasible), feasible: Boolean(check?.feasible), reasons: check?.reasons || [], message: check?.reasons?.[0] || '' });
 }));
 router.post('/teacher/requests/:id/approve', auth.requireAdmin, wrap((req, res) => {
   const list = hub.listRequests(req.user);
