@@ -7,7 +7,7 @@
 This one file is everything you need: the rules, the build order and the specification (Part F).
 Every supporting file (tests, chatbot knowledge, fonts, images, Docker files) is described in Part D so you can create it yourself.
 
-**How to use this template:** put this file together with your competition brief (e.g. `DataIndex.pdf`, Word/text/image brief, if any) and data (`CSV/` or competition dataset) in a folder, fill in **§1.3** (or ask your AI coding assistant to extract §1.3 from the competition brief), and instruct the AI to start with Part A.1.
+**How to use this template:** put this file together with your competition brief (e.g. `DataIndex.pdf`, Word/text/image brief, if any) and data (`csv/` or competition dataset) in a folder, fill in **§1.3** (or ask your AI coding assistant to extract §1.3 from the competition brief), and instruct the AI to start with Part A.1.
 
 **Keep this file in view.** Your tool may not load it automatically. Read it in full before any work.
 Whenever you start a new chat, your earlier messages get summarised, or you are unsure of a rule, read
@@ -28,13 +28,13 @@ Thai rule-based chatbot. Everything runs offline in one Docker container on port
 
 ### A.1 First 10 minutes
 1. **Git first.** If the folder is not a git repository yet: `git init`, then commit the untouched
-   inputs (`skill.md`, competition brief / `DataIndex.pdf`, `CSV/` or dataset) as `Original skill.md and competition data`, so every
+   inputs (`skill.md`, competition brief / `DataIndex.pdf`, `csv/` or dataset) as `Original skill.md and competition data`, so every
    later change to this file can be seen with `git diff` and undone.
 2. **Read the competition brief** (`DataIndex.pdf` or any provided PDF/DOCX/TXT/image brief, if present). If your file-reading tool cannot render PDFs on this
    machine, extract text with `pdftotext -layout -enc UTF-8 DataIndex.pdf -` or Python (`pypdf` /
    `fitz`). Images in the PDF (sample output, sample forms) may be unreadable; say so.
-3. **Inspect the dataset (`CSV/` or provided files)**: headers, BOMs, row counts, odd rows (missing columns, invalid ids, trailing spaces).
-   Never edit `CSV/`; it is the read-only seed for "reset".
+3. **Inspect the dataset (`csv/` or provided files)**: headers, BOMs, row counts, odd rows (missing columns, invalid ids, trailing spaces).
+   Never edit `csv/`; it is the read-only seed for "reset".
 4. **Check tools**: `node -v` (≥ 20), `npm -v`, `git --version`, `docker --version` (and whether Docker
    Desktop is running), Python + PIL (optional, for the logo), internet access (for `npm install` and
    the font).
@@ -62,9 +62,12 @@ file names), anything that differs from SPEC and why, and how to run it (`docker
 login `admin` / `admin1234`).
 
 ### A.4 Toggleable special constraints (if configured in §1.3)
-If §1.3 defines toggleable special constraints, the system supports switching each one on/off from
-the Solve page (then click "เริ่มจัดตาราง") or via the chat command (e.g. `จัดตารางใหม่ เปิด <ids> ปิด <ids>`),
-and downloading `output.csv` from the Export page. *(Auto-derived from §1.3 once defined.)*
+The 6 special constraints of §1.3 (C8 `c8_execMeeting`, C9 `c9_wedFixed`, C10 `c10_roomCategory`,
+C11 `c11_sportDualRoom`, C12 `c12_electiveSync`, C13 `c13_combinedYear`, all ON by default) can each be
+switched on/off from the Solve page (then click "เริ่มจัดตาราง") or via the chat command
+(e.g. `จัดตารางใหม่ ปิดข้อ 8`, `จัดตารางใหม่ เปิดทั้งหมด`), and `output.csv` is downloaded from the Export
+page. All six are mandatory in the brief, so a timetable made with any of them off must carry the
+warning described in §4.
 
 ---
 
@@ -86,14 +89,14 @@ option that matches the existing patterns and say what you chose.
 
 ### B.2 Repository layout (must match)
 ```
-CSV/                       competition data (read-only seed for "reset")
+csv/                       competition data (read-only seed for "reset")
 DataIndex.pdf  skill.md  NOTES.md (optional build notes, e.g. a font fallback)
 backend/
   package.json             "type": "module"; scripts: start, dev, test
   src/server.js
   src/routes/api.js
-  src/services/            paths schema csv config store context validator solver diagnose
-                           solve-worker editor grid stats exporter snapshots auth
+  src/services/            paths schema csv seed-adapter config store context validator solver diagnose
+                           solve-worker editor grid stats exporter snapshots auth teacher-hub
   src/services/chatbot/    nlu.js bot.js knowledge.js          (knowledge.js: you write it, Part D.3)
   test/                    validator.test.js chatbot.test.js run-solver.js   (you write them, Part D.2)
   fonts/                   Sarabun-Regular.ttf Sarabun-Bold.ttf  (+ OFL.txt)  (Part D.4)
@@ -180,14 +183,14 @@ match SPEC so the same seed gives the same timetable.
 
 ### Step 4 — Diagnose, Grid, Editor, Stats (SPEC §6, §7)
 **Done when** (real output shown): `diagnose` with the current constraints gives `feasible = true`;
-`bestSeed` with 5 seeds returns results sorted by soft cost; `buildGrid('group', 'G1', …)` merges
+`bestSeed` with 5 seeds returns results sorted by soft cost; `buildGrid('group', 'Y1_1', …)` merges
 consecutive periods into spans.
 
 ### Step 5 — Auth + API (SPEC §9)
 `src/services/auth.js` and every route of §9.2 except `/chat` and `/chat/action` (step 7). Exports call
 `exporter.js` (stub `exportCsv` for real now; PDF/Excel/QR in step 6). Mount `guard` in `server.js`.
 Test with a cookie-keeping HTTP client: login admin, `GET /api/data`, `POST /api/solve`,
-`GET /api/timetable`, `POST /api/timetable/move`, `GET /api/timetable/grid?view=group&id=G1`.
+`GET /api/timetable`, `POST /api/timetable/move`, `GET /api/timetable/grid?view=group&id=Y1_1`.
 
 **Done when:** solve via API gives `status: "success"` and `validation.passed: true`; no login → 401;
 a viewer account → 403 on POST and on `/users`.
@@ -243,9 +246,9 @@ undo restores exactly the previous rows; the PDF preview opens in-page with a pr
 timetable; `/p` works without login.
 
 ### Step 13 — Chat widget (SPEC §11.4)
-**Done when**, typed in the real widget: "ตาราง G1 วันจันทร์", "ห้องไหนว่าง วันพุธ คาบ 3",
+**Done when**, typed in the real widget: "ตาราง Y1_1 วันจันทร์", "ห้องไหนว่าง วันพุธ คาบ 3",
 "จัดตารางใหม่" (click confirm → it really solves and the card shows done),
-"ส่งออก PDF ของ G1" (opens the preview) — all four answer correctly.
+"ส่งออก PDF ของ Y1_1" (opens the preview) — all four answer correctly.
 
 ### Step 14 — Docker and final check (SPEC §13)
 Write `Dockerfile`, `docker-compose.yml`, `.dockerignore` (Part D.5); first check Part E.6 for
@@ -280,13 +283,19 @@ and exits 1 if any failed. All start with `store.init(); const data = store.getD
 `good = solve(data, cfg).rows`. Line 1: `validate(good)` passes. Then one deliberate mutation per
 user-defined constraint check (each on a fresh copy) must make the matching check fail (print its first
 violation).
-- *(Auto-derived from §1.3 & §4: generate one mutation test per Basic/Special check defined in §1.3.)*
+- Mutations (one per check C1–C13): C1 drop 1 period of a normal subject; C2 move a row into period 5;
+  C3 put a group in 2 subjects at one slot; C4 double-book a teacher; C5 double-book a room; C6 put a
+  combined-year class (120 students) in a 40-seat room; C7 remove one co-teacher; C8 move an executive's
+  class to Tue period 1; C9 remove a Wed period 8 `ADVISOR` row; C10 move a ComputerLab subject to a
+  theory room; C11 drop the sport venue from a sport row; C12 move one elective of a set to another
+  slot; C13 move one group of a combined-year class to another slot.
 
 **`run-solver.js`.** `base = loadConfig()`; runs: default/all-specials-on, basic-only, and any
 user-defined special constraint combinations. For each, `mergeConfig({ ...base, constraints })`, solve,
 and PASS only if `status === 'success'` and `validate(...).passed`. Print rows, restarts, soft cost
 and seconds; on failure print the message/errors or the failed checks.
-- *(Auto-derived from §1.3: test all configured special-constraint combinations in `--all`.)*
+- `--all` runs: `all-specials-on`, `basic-only` (C8–C13 off), and one run each with C8, C9, C10, C11
+  or C12 switched off. It then solves twice with seed 42 (identical rows) and once with seed 99 (different).
 
 **`chatbot.test.js`.** `config = loadConfig()`, `ctx`, `solved = solve(data, config)`,
 `env = { data, config, ctx, rows: solved.rows, meta: { stats: solved.stats, source: 'solver' },
@@ -339,9 +348,8 @@ must have intent `free` and `context.id === g1`.
 
 ### D.3 `backend/src/services/chatbot/knowledge.js`
 Static content only (no logic), four named exports:
-- `CONSTRAINTS`: object keyed by the user-defined constraint ids from §1.3, each `{ name, detail, why, fix }` in Thai
+- `CONSTRAINTS`: object keyed `I0`, `C1` … `C13` (the checks of §1.3 and §4), each `{ name, detail, why, fix }` in Thai
   (name = short title, detail = the rule as in SPEC §1.3, why = common cause of a failure, fix = how to fix it).
-  *(Auto-derived from §1.3 once defined.)*
 - `PAGES`: `[{ path, title, keywords[] }]` for `/`, `/data`, `/solve`, `/timetable`, `/report`,
   `/export`, `/settings` (titles as the sidebar labels).
 - `HOWTO`: `[{ keys[], title, page, steps[] }]` covering import data, solve, edit by hand, export,
@@ -405,8 +413,8 @@ FROM node:24-alpine
 ENV NODE_ENV=production PORT=3000 TZ=Asia/Bangkok
 RUN apk add --no-cache tzdata
 WORKDIR /app
-# Same layout as the repository so paths.js resolves ../CSV and ../frontend/dist.
-COPY CSV/ ./CSV/
+# Same layout as the repository so paths.js resolves ../csv and ../frontend/dist.
+COPY csv/ ./csv/
 COPY --from=backend-deps /app/backend/node_modules ./backend/node_modules
 COPY backend/package.json ./backend/
 COPY backend/src ./backend/src
@@ -447,7 +455,7 @@ CMD ["node", "src/server.js"]
 ### E.2 Backend
 - `csv-parse` with `relax_column_count`: a short row (e.g. a subject row with no `credit`) parses with the
   missing field `undefined` → `normalizeRow` makes it `0`. Report such rows as data quirks.
-- Advisor-to-teacher matching (e.g. for Homeroom C11): competition CSVs can have 1-character Thai typos between
+- Advisor-to-teacher matching (only if advisor names are added later; this dataset has none): competition CSVs can have 1-character Thai typos between
   `student_group.csv` and `teacher.csv` (`สวรรินทร์`↔`สวรินทร์`, `สุนันท์`↔`สุวนันท์`). Match exact first name first,
   then fall back to Levenshtein distance ≤ 1.
 - Solver: `options()` calls `rng()` inside `pickRoom` for every candidate — this is part of determinism;
@@ -507,8 +515,8 @@ CMD ["node", "src/server.js"]
 - Clean up test accounts and restore the admin profile after testing.
 
 ### E.5 PDF checking
-`pdftoppm` may be missing. Render with PyMuPDF: `python -c "import fitz; d=fitz.open('G1.pdf');
-print(d.page_count); d[0].get_pixmap(dpi=110).save('G1.png')"`, then open the PNG and check text fits,
+`pdftoppm` may be missing. Render with PyMuPDF: `python -c "import fitz; d=fitz.open('Y1_1.pdf');
+print(d.page_count); d[0].get_pixmap(dpi=110).save('Y1_1.png')"`, then open the PNG and check text fits,
 Thai marks are attached, and the page count is 1 per entity (all groups + teachers + rooms for `view=all`).
 
 ### E.6 Docker on a shared machine
@@ -544,26 +552,39 @@ Contents: 1 Competition task · 2 Backend foundation · 3 Context · 4 Validator
 
 Thai national vocational AI skills competition (ปวส.). Build an AI timetable scheduler.
 
-### 1.1 Input: 7 files in `CSV/` (also importable as CSV or XLSX)
+### 1.1 Input: 7 standard tables, built from `csv/` by the seed adapter (also importable as CSV or XLSX)
+
+The competition data in `csv/` is 4 per-year files (`ชั้นปีที่1.csv` … `ชั้นปีที่4.csv`, converted from
+`โจทย์ AI ปวส ver2.xlsx`). `services/seed-adapter.js` turns them, plus the fixed facts of the brief
+(groups, rooms, venues, timeslots), into the 7 tables below. If the 7 standard files are already in
+`csv/`, they are copied as they are.
 
 | file | fields | notes |
 |---|---|---|
-| teacher.csv | teacher_id, teacher_name, role | role `Leader` or `Teacher` |
-| room.csv | room_id, room_name, room_type | types: Theory, Computer Lab, AI Lab, IOT Lab, Network Lab, English Lab, Computer Graphic Lab, Factory, Practice |
-| student_group.csv | group_id, group_name, student_count, advisor | advisor is a full Thai name (may list two, separated by `/`) |
-| subject.csv | subject_id, subject_name, theory, practice, credit | periods per week = theory + practice |
-| teach.csv | teacher_id, subject_id | who may teach what |
-| timeslot.csv | timeslot_id, day, period, start, end | 60 rows: Mon–Fri × periods 1–12, 08:00–20:00, 1 hour each |
-| register.csv | group_id, subject_id | which group takes which subject |
+| teacher.csv | teacher_id, teacher_name, role | ids `T01`… in order of first appearance; role `Leader` = one of the 7 executives in the brief, else `Teacher` |
+| room.csv | room_id, room_name, room_type, capacity, sport_tag | 38 rows. types: `Theory` (14 homerooms `R321`–`R336`, `SP1`, `SP2`, 40 seats), `LectureHall` (`HALL1`, `HALL2`, 120 seats), `ComputerLab` (`COMP1`, `COMP2`, 30 seats), `Sport` (20 venues `F01_1`…`F12_2`, `sport_tag` = the sport it serves) |
+| student_group.csv | group_id, group_name, student_count, advisor, year, home_room | 14 rows `Y1_1`…`Y4_3` (`group_name` like `ปี 1/1`); `advisor` is empty (no data in the brief) |
+| subject.csv | subject_id, subject_name, theory, practice, credit, group_type, credit_raw, year, special_mode, elective_set, sport_tag | ids like `มศ 041017`; periods per week = theory + practice; `special_mode`: `normal`, `combined_year`, `elective`, `practicum_y4` |
+| teach.csv | teacher_id, subject_id | who may teach what (2 rows = co-taught subject) |
+| timeslot.csv | timeslot_id, day, period, start, end | 45 rows `T01`–`T45`: Mon–Fri × periods 1–9, 08:00–17:00, 1 hour each |
+| register.csv | group_id, subject_id | which group takes which subject; electives are registered to a cohort id (`Y2_EL`, `Y3_EL1`, `Y3_EL2`) instead of a group |
 
-Data quirks the code must handle: UTF-8 BOM on some files and headers; `student_count` like `14.0`;
-trailing spaces (`"Computer Lab  "`); invalid room ids (not matching `/^[A-Za-z0-9_-]+$/`); duplicate
-teach rows; `student_groups.csv` accepted as an alias of `student_group.csv`.
+Data quirks the code must handle: UTF-8 BOM; trailing spaces in subject codes and names (`"กศ 032010  "`);
+extra spaces inside teacher names (`อ. สุธน  เพ็ชรนิล` → `อ.สุธน เพ็ชรนิล`); a co-taught subject is listed on
+2 rows; credit text that does not follow `X(L-P-S)` (`1(90)`, `2(90)`, `6(360)`) with the real hours in
+`เงื่อนไขรายวิชา` (`เรียน 4 ชม.`); the executive mark appears only on a teacher's first row; invalid room ids
+(not matching `/^[A-Za-z0-9_-]+$/`); duplicate teach rows; `student_groups.csv` accepted as an alias of
+`student_group.csv`.
 
 ### 1.2 Output
 
-`output.csv` with exactly `group_id,timeslot_id,subject_id,teacher_id,room_id`. One row = one group in
-one period with one subject, teacher and room. No BOM.
+`output.csv` with exactly `group_id,timeslot_id,subject_id,teacher_id,room_id`. No BOM. One row = one
+group (or one elective cohort) in one period with one subject:
+- `teacher_id`: one teacher id, or two joined by `+` for a co-taught subject (`T03+T09`); `-` on the fixed
+  `ADVISOR` / `ACTIVITY` rows.
+- `room_id`: one room id, or the theory room and the sport venue joined by `+` for a sport subject
+  (`R321+F09_N`).
+- Elective rows use the cohort id as `group_id` (`Y2_EL`, `Y3_EL1`, `Y3_EL2`), one row per elective subject.
 
 ### 1.3 Constraints & Competition Metadata (Single Source of Truth)
 
@@ -571,8 +592,8 @@ one period with one subject, teacher and room. No BOM.
 - ชื่อสถาบัน (`config.document.college`): `คณะศึกษาศาสตร์ มหาวิทยาลัยการกีฬาแห่งชาติ วิทยาเขตกระบี่`
 - หลักสูตร: `ศึกษาศาสตรบัณฑิต สาขาพลศึกษา ชั้นปีที่ 1–4`
 - ภาคเรียน/ปีการศึกษาเริ่มต้น: `semester: '2'`, `year: '2569'`
-- ชุดข้อมูลต้นฉบับ (`csv/`): 4 ไฟล์รายชั้นปี (`ชั้นปีที่1.csv`, `ชั้นปีที่2.csv`, `ชั้นปีที่3.csv`, `ชั้นปีที่4.csv`) แปลงอัตโนมัติ (Seed Adapter) เข้าสู่ 7 ตารางมาตรฐานของระบบ (`teacher`, `room`, `student_group`, `subject`, `teach`, `timeslot`, `register`) พร้อมข้อมูลคงที่จากโจทย์ (14 กลุ่ม นศ., 16 ห้องเรียน + 21 สนาม/โรงยิม/ห้องคอม, 45 คาบ จ.–ศ. คาบ 1–9 เวลา 08:00–17:00, อาจารย์ฝ่ายบริหาร 7 คน)
-- รูปแบบไฟล์ส่งออก `output.csv`: `group_id,timeslot_id,subject_id,teacher_id,room_id` (5 คอลัมน์ ไม่มี BOM; กรณีสอนร่วม 2 อาจารย์คั่นด้วย `+` เช่น `T01+T02`; กรณีวิชากีฬาใช้ 2 สถานที่คั่นด้วย `+` เช่น `R321+F09N`)
+- ชุดข้อมูลต้นฉบับ (`csv/`): 4 ไฟล์รายชั้นปี (`ชั้นปีที่1.csv`, `ชั้นปีที่2.csv`, `ชั้นปีที่3.csv`, `ชั้นปีที่4.csv`) แปลงอัตโนมัติ (Seed Adapter) เข้าสู่ 7 ตารางมาตรฐานของระบบ (`teacher`, `room`, `student_group`, `subject`, `teach`, `timeslot`, `register`) พร้อมข้อมูลคงที่จากโจทย์ (14 กลุ่ม นศ., 16 ห้องเรียน + 22 สนาม/โรงยิม/ห้องคอม (สนาม 20 + ห้องคอม 2), 45 คาบ จ.–ศ. คาบ 1–9 เวลา 08:00–17:00, อาจารย์ฝ่ายบริหาร 7 คน)
+- รูปแบบไฟล์ส่งออก `output.csv`: `group_id,timeslot_id,subject_id,teacher_id,room_id` (5 คอลัมน์ ไม่มี BOM; กรณีสอนร่วม 2 อาจารย์คั่นด้วย `+` เช่น `T01+T02`; กรณีวิชากีฬาใช้ 2 สถานที่คั่นด้วย `+` เช่น `R321+F09_N`; รายละเอียดใน §1.2)
 
 **Basic constraints (always on / Hard constraints — ข้อ 1–7):**
 1. **C1 — จำนวนคาบรายวิชาเท่ากับชั่วโมงเรียนที่กำหนด**: จำนวนคาบของแต่ละวิชาต้องเท่ากับ `บรรยาย + ปฏิบัติ` (หรือ 4 คาบสำหรับวิชาปฏิบัติการวิชาชีพ `1(90)` / `2(90)`) ยกเว้นคาบคงที่ `ADVISOR`/`ACTIVITY` และชั้นปีที่ 4 (`กศ 021037`) ที่ไม่มีตารางเรียน
@@ -585,7 +606,7 @@ one period with one subject, teacher and room. No BOM.
 
 **Special constraints (toggleable on/off, default ON — ข้อ 8–13):**
 8. **C8 (`c8_execMeeting`) — ประชุมอาจารย์ฝ่ายบริหาร 7 คน**: อาจารย์ฝ่ายบริหาร 7 คน (ตามรายชื่อในโจทย์) ห้ามสอนวันอังคาร คาบ 1–4 (08:00–12:00 น.)
-9. **C9 (`c9_wedFixed`) — คาบพบอาจารย์ที่ปรึกษาและกิจกรรมวันพุธ**: วันพุธ คาบ 8 = คาบพบอาจารย์ที่ปรึกษา และวันพุธ คาบ 9 = คาบกิจกรรม ของทุกกลุ่ม (ห้ามจัดรายวิชาอื่นทับ)
+9. **C9 (`c9_wedFixed`) — คาบพบอาจารย์ที่ปรึกษาและกิจกรรมวันพุธ**: วันพุธ คาบ 8 = คาบพบอาจารย์ที่ปรึกษา และวันพุธ คาบ 9 = คาบกิจกรรม ของทุกกลุ่มชั้นปีที่ 1–3 (ห้ามจัดรายวิชาอื่นทับ) ระบบใส่แถวคงที่ `ADVISOR` / `ACTIVITY` ในห้องประจำของกลุ่ม โดย `teacher_id` = `-` เพราะยังไม่มีรายชื่ออาจารย์ที่ปรึกษา; ชั้นปีที่ 4 ไม่มีแถวเหล่านี้เพราะไม่มีตารางเรียน
 10. **C10 (`c10_roomCategory`) — ประเภทห้องและห้องประจำ**: กลุ่มวิชาภาษา/สังคมฯ/วิชาชีพครู/บังคับ/คณิตฯ/วิทย์ ใช้ห้องเรียนทฤษฎี (ห้องประจำของกลุ่ม หรือห้องประชุมเมื่อเรียนรวมทั้งชั้นปี); กลุ่มนวัตกรรมและเทคโนโลยี ใช้ห้องคอมพิวเตอร์ 1–2
 11. **C11 (`c11_sportDualRoom`) — กลุ่มทักษะและการสอนกีฬาใช้ 2 สถานที่พร้อมกัน**: รายวิชากลุ่มทักษะและการสอนกีฬาต้องจองทั้งห้องเรียนทฤษฎี (ห้องประจำกลุ่ม) และโรงยิม/สนามของกีฬานั้นในช่วงเวลาเดียวกัน
 12. **C12 (`c12_electiveSync`) — วิชาเลือกกีฬาจัดพร้อมกันทั้งชุด**: กลุ่มทักษะและการสอนกีฬาขั้นสูง (ปี 2: 8 วิชา), การตัดสินกีฬา (ปี 3: 7 วิชา), และกลวิธีการฝึกกีฬา (ปี 3: 6 วิชา) ต้องจัดทุกวิชาในชุดเดียวกันเวลาเดียวกัน พร้อมจองทั้งห้องทฤษฎี (ใช้ห้องประจำชั้นปี + ห้องประชุม + ห้องประจำว่างของปี 4) และโรงยิม/สนามของแต่ละกีฬา
@@ -602,8 +623,13 @@ one period with one subject, teacher and room. No BOM.
 - คงรูปแบบ `output.csv` 5 คอลัมน์ ใช้ `+` คั่นกรณีสอนร่วม 2 อาจารย์ หรือใช้ 2 สถานที่พร้อมกัน
 - แยก `อ.สิบเอกสุรชัย แซ่ด่าน` (ปี 1, ผู้บริหาร) กับ `อ.สุรชัย แซ่ด่าน` (ปี 3, ไม่ติดผู้บริหาร) เป็นคนละคนตามข้อความดิบใน CSV (แต่ตัดช่องว่างเกินเช่น `อ. สุธน เพ็ชรนิล` → `อ.สุธน เพ็ชรนิล`)
 - Integrity check `I0` ตรวจความสมบูรณ์โครงสร้าง (กลุ่ม วิชา ครู ห้อง คาบมีอยู่จริง)
+- ชื่ออาจารย์ที่ปรึกษาเว้นว่างไว้ก่อน (`advisor = ''`) เพราะโจทย์และ xlsx ไม่มีข้อมูลนี้: หัวตารางแสดงช่องว่าง และช่องลายเซ็นที่ปรึกษาพิมพ์เป็นเส้นประ
+- ชั้นปีที่ 4 ไม่มีแถวใดใน `output.csv` เลย รวมถึงแถว `ADVISOR` / `ACTIVITY` วันพุธ (ยึดเงื่อนไขข้อ 6 ของโจทย์)
+- เงื่อนไขพิเศษ C8–C13 ในโจทย์เป็นข้อบังคับทั้งหมด จึงเปิดไว้เป็นค่าเริ่มต้น ถ้าผู้ใช้ปิดข้อใด ระบบต้องเตือนทุกจุดที่แสดงผลตรวจ ว่าตารางนั้นยังไม่ตรงโจทย์ครบทุกข้อ (ดู §4)
 
-> **AI Propagation Checklist**: อัปเดตครบแล้วใน `§2.4`, `§3`, `§4`, `§5`, `§6.1`, `§10`, `§11`, `§12` และโค้ดทั้งหมดจะอ้างอิงตาม §1.3 นี้
+> **AI Propagation Checklist** (ตรวจเทียบกับโค้ด backend ล่าสุดแล้ว): กฎใน §1.3 ถูกเขียนลงใน `A.4`, `D.2`, `D.3`, `§1.1`, `§1.2`, `§2.1`, `§2.4`, `§2.5`, `§3`, `§4`, `§5.2`–`§5.3`, `§6.1`, `§10.5`, `§11.1` แล้ว
+> - ข้อยกเว้นที่ตั้งใจไว้: `§2.4` คงชื่อ `วิทยาลัยเทคนิคพังงา` ใน `document` / `appearance` ตามที่ผู้ใช้เลือก (ส่วน §1.3 และ `config.js` ใช้ชื่อคณะศึกษาศาสตร์ฯ)
+> - ยังเป็นสเปกที่โค้ดยังไม่ได้ทำ: คำเตือนเมื่อปิดเงื่อนไขพิเศษ (§4, §10.5); ส่วน frontend (ขั้นตอน 8 เป็นต้นไป) ยังไม่ได้ตรวจเทียบกับโค้ด
 
 ---
 
@@ -620,8 +646,8 @@ Node ESM. `backend/package.json`:
 
 ### 2.1 `services/paths.js`
 Exports: `BACKEND_DIR` (= `src/..`), `DATA_DIR` (`backend/data`), `OUTPUT_DIR` (`backend/output`),
-`FONT_DIR` (`backend/fonts`), `ASSET_DIR` (`backend/assets`), `SEED_DIR` (`../CSV` from backend),
-`FRONTEND_DIST` (`../frontend/dist/frontend/browser`).
+`FONT_DIR` (`backend/fonts`), `ASSET_DIR` (`backend/assets`), `ROOT_DIR` (repository root),
+`SEED_DIR` (`<ROOT_DIR>/csv`, lowercase), `FRONTEND_DIST` (`<ROOT_DIR>/frontend/dist/frontend/browser`).
 
 ### 2.2 `services/schema.js`
 ```js
@@ -653,19 +679,18 @@ export const OUTPUT_FIELDS = ['group_id','timeslot_id','subject_id','teacher_id'
 ```js
 export const DEFAULT_CONFIG = {
   constraints: {
-    c9_roomType: true,
-    c10_leaderMeeting: true,
-    c11_homeroom: true,
-    c12_activityWed: true,
-    c13_jointGeneral: true,
+    c8_execMeeting: true,
+    c9_wedFixed: true,
+    c10_roomCategory: true,
+    c11_sportDualRoom: true,
+    c12_electiveSync: true,
+    c13_combinedYear: true,
   },
   params: {
     breakPeriod: 5,
-    maxPeriodsPerDay: 10,
-    leaderMeeting: { day: 'Tue', period: 8 },
-    activitySlot: { day: 'Wed', periods: [8, 9] },
-    homeroomHours: 1,
-    jointGroupSize: 2,
+    maxPeriodsPerDay: 8,
+    execMeeting: { day: 'Tue', periods: [1, 2, 3, 4] },
+    wedFixed: { day: 'Wed', advisorPeriod: 8, activityPeriod: 9 },
     maxBlock: 4,
     latestPreferredPeriod: 9,
     timeLimitSec: 20,
@@ -693,22 +718,23 @@ export const DEFAULT_CONFIG = {
 - `saveConfig(cfg)` writes `mergeConfig(cfg)` (2-space JSON) and returns it.
 - `mergeConfig(cfg = {})` → `{ savedSeeds: array or [], document: {...defaults, ...cfg.document},
   constraints: {...defaults.constraints, ...cfg.constraints}, params: {...defaults.params, ...cfg.params} }`
-  (also deep-merge any nested constraint parameter objects defined by the user by one level).
+  (also deep-merge `params.execMeeting` and `params.wedFixed` by one level).
 - Saved seed shape: `{ id, name, note, tags[], pinned, seed, baseSeed, source, isSnapshot, constraints, params (full), softCost, validationPassed, rowsCount, savedBy, savedAt, updatedAt }`. Pinned seeds sort first.
 - Saved config profiles (`savedProfiles[]`): `{ id, name, note, constraints, params, document, savedAt }` plus `updatedAt` ISO timestamp on every `saveConfig`.
 - Snapshot Seeds (`services/snapshots.js`, file `backend/data/seed-snapshots.json`): every manual timetable edit (`move`, `edit`, `PUT /timetable`, chat `move`) computes a deterministic 6-digit seed (`100000`–`999999`) from `sha256(constraints + canonical rows)` + recomputes `softCost`, saves a snapshot `{ seed, baseSeed, softCost, constraints, params, rows, createdAt }` (up to 200 entries), and updates `meta.stats.seed`. Entering that seed in `/api/solve` (Solve page, Saved Seeds, or Chatbot) restores the exact edited timetable and re-validates it via `validator.js`.
 
 ### 2.5 `services/store.js` (in-memory data backed by files)
 - State: `data` (entity → rows) and `timetable` (`{ rows, meta }` or null).
-- `init()`: mkdir data/output; for each entity, copy the file from `SEED_DIR` if missing in `DATA_DIR`,
-  then read it (`parseCsv` → `normalizeRow` → dedupe by `rowKey`, keeping the first). Load
+- `init()`: mkdir data/output; if any entity file is missing in `DATA_DIR`, seed it: copy the 7 standard
+  files from `SEED_DIR` when all 7 exist there, otherwise build them with `loadCompetitionSeed(SEED_DIR)`
+  (`seed-adapter.js`, from the 4 per-year files) and write them. Then read each file (`parseCsv` → `normalizeRow` → dedupe by `rowKey`, keeping the first). Load
   `output/output.csv` (+ `output/meta.json`) if present, normalising rows with `normalizeOutputRow`.
 - `normalizeOutputRow(r)`: the 5 output fields as trimmed strings.
 - `getData()`, `getEntity(e)`; `replaceEntity(e, rawRows)` (normalise + dedupe + persist);
   `addRow` (400 `ต้องระบุ <fields>` if a key field is empty; 409 `มีข้อมูลรหัส <key> อยู่แล้ว`);
   `updateRow(e, key, raw)` (merge, 404 `ไม่พบข้อมูลรหัส <key>`, 409 on a key collision);
   `deleteRow(e, key)`; every change rewrites the entity CSV.
-- `resetData()`: copy all 7 files from `SEED_DIR` over `DATA_DIR`, then `init()`.
+- `resetData()`: redo the seeding above with overwrite (copy or adapt from `SEED_DIR`), then `init()`.
 - `getTimetable()`; `setTimetable(rows, meta)`: normalise, sort by group_id then timeslot_id (both
   `localeCompare(..., undefined, { numeric: true })`), set `meta.updatedAt` (ISO), write
   `output.csv` (`toCsv` with `OUTPUT_FIELDS`) and `meta.json`.
@@ -729,7 +755,8 @@ statically and send `index.html` for any non-`/api` GET (SPA fallback). Error ha
 
 - `days`: distinct `timeslot.day` in file order. `slotsById`: Map id → `{...row, id, dayIdx}` in file
   order. `periods`: distinct periods ascending.
-- `daySlots[dayIdx]`: that day's slot ids sorted by period *(Auto-derived from §1.3: filter break/blocked slots if defined)*.
+- `daySlots[dayIdx]`: that day's slot ids sorted by period, without `breakPeriod` (5) and, when C9 is on,
+  without Wed periods 8–9 (`isWedFixedSlot`). `slotByDayPeriod`: `dayIdx|period` → slot id.
 - `teachers`, `groups`, `subjects`: Maps by id in file order. `rooms`: Map in file order, skipping ids
   not matching `/^[A-Za-z0-9_-]+$/` with warning `ห้อง "<id>" มีรหัสไม่ถูกต้อง จึงไม่นำมาใช้จัดตาราง`.
 - `teachersBySubject`: Map subject → teacher ids in teach.csv order; skip unknown teachers with warning
@@ -740,11 +767,25 @@ statically and send `index.html` for any non-`/api` GET (SPA fallback). Error ha
   `register.csv อ้างถึงวิชา <s> ที่ไม่มีใน subject.csv`. Kept but flagged: no teacher (error)
   `วิชา <s> ที่กลุ่ม <g> ลงทะเบียน ไม่มีครูผู้สอนใน teach.csv`; 0 hours (warn) `วิชา <s> มีจำนวนคาบเป็น 0`.
   Groups with no registration (warn) `กลุ่ม <g> ไม่มีรายวิชาที่ลงทะเบียน`.
-- `roomsFor(subjectId)`: returns candidate room ids in `rooms` order (all rooms by default;
-  *Auto-derived from §1.3: filter room types if defined*).
-- *(Auto-derived from §1.3: add any extra lookups/helpers required by Basic/Special/Soft constraints.)*
-- Returns `{ config, params, constraints, warnings, days, periods, daySlots, slotsById,
-  teachers, groups, subjects, rooms, teachersBySubject, registrations, hours, roomsFor }`.
+- `activeGroups`: groups of years 1–3 (year 4 has no timetable). `hours()` is 0 for `practicum_y4`.
+- `electiveSets`: Map `Y2_EL` / `Y3_EL1` / `Y3_EL2` → `{ id, year, name, label, groups[] (that year's
+  groups), subjects[] (registered to the cohort) }`.
+- `roomsFor(subjectId, groupId)`: candidate room ids in `rooms` order, only rooms whose capacity fits
+  (elective = 20 seats, combined year = sum of that year's groups, else the group size). With C10 on:
+  `นวัตกรรมและเทคโนโลยี` → ComputerLab; combined year (C13 on) → LectureHall; elective →
+  `theoryRoomsForElective(year)` = that year's homerooms + LectureHalls + year-4 homerooms; normal →
+  the group's `home_room`. With C10 off: any non-Sport room (Theory/LectureHall only for sport subjects
+  when C11 is on).
+- `sportRoomFor(subjectId)`: the Sport room whose `sport_tag` equals the subject's `sport_tag`.
+- `isExecTeacher(t)` (role `Leader`), `isExecBlockedSlot(slot)` (C8 on and `params.execMeeting`),
+  `isCoTaught(s)` (more than one teacher), `isWedFixedSlot(slot)`, `lectureHallIds`, `computerLabIds`,
+  `allTheoryRoomIds`.
+- Returns `{ config, params, constraints, warnings, days, dayToIdx, periods, daySlots, slotsById,
+  slotByDayPeriod, teachers, groups, activeGroups, subjects, rooms, teachersBySubject, registrations,
+  electiveSets, hours, roomsFor, sportRoomFor, theoryRoomsForElective, lectureHallIds, computerLabIds,
+  allTheoryRoomIds, isExecTeacher, isExecBlockedSlot, isCoTaught, isGroupInElectiveCohort, isWedFixedSlot }`.
+  `context.js` also exports `SPECIAL_SUBJECTS` (`ADVISOR` พบอาจารย์ที่ปรึกษา, `ACTIVITY` กิจกรรม),
+  `ELECTIVE_SET_META` and `splitIds(value)` (split a `+` joined id field).
 
 ---
 
@@ -753,10 +794,33 @@ statically and send `index.html` for any non-`/api` GET (SPA fallback). Error ha
 `validate(rows, data, config, ctx = buildContext(data, config))` checks any timetable independently.
 
 - **Checks structure (`checks[]`):**
-  - *(Auto-derived from §1.3: populate all integrity / basic / special checks and their Thai names from §1.3.)*
+  - 14 checks in this order (id, no, Thai name):
+    `I0` 0 `ความสมบูรณ์ของโครงสร้างข้อมูล (Integrity)` (integrity) ·
+    `C1` 1 `จำนวนคาบรายวิชาเท่ากับชั่วโมงเรียนที่กำหนด` ·
+    `C2` 2 `ห้ามจัดเรียนในคาบพักเที่ยง (คาบที่ 5)` ·
+    `C3` 3 `กลุ่มนักศึกษาไม่เรียนซ้อนและครบตามหลักสูตร (ปี 4 ไม่มีตาราง)` ·
+    `C4` 4 `อาจารย์ไม่สอนซ้อนกันในคาบเดียวกัน` ·
+    `C5` 5 `ห้องเรียนและสนามไม่ใช้งานซ้อนกันในคาบเดียวกัน` ·
+    `C6` 6 `ความจุห้องเพียงพอต่อจำนวนนักศึกษา` ·
+    `C7` 7 `อาจารย์ตรงรายวิชาและวิชาสอนร่วมสอนพร้อมกันทั้ง 2 คน` (basic) ·
+    `C8` 8 `ประชุมอาจารย์ฝ่ายบริหาร 7 คน (อังคาร คาบ 1–4)` ·
+    `C9` 9 `คาบพบอาจารย์ที่ปรึกษา (พุธ คาบ 8) และกิจกรรม (พุธ คาบ 9)` ·
+    `C10` 10 `ประเภทห้องและห้องประจำ (ทฤษฎี / คอมพิวเตอร์ / ห้องประชุม)` ·
+    `C11` 11 `กลุ่มทักษะและการสอนกีฬาจองทั้งห้องทฤษฎีและโรงยิม/สนามพร้อมกัน` ·
+    `C12` 12 `กลุ่มวิชาเลือกกีฬาจัดพร้อมกันทั้งชุด (ห้องทฤษฎี + สนาม)` ·
+    `C13` 13 `วิชาปฏิบัติการวิชาชีพเรียนรวมทั้งชั้นปี (4 คาบ ห้องประชุม)` (special).
+  - Rows are read with `splitIds` (`teacher_id` / `room_id` may be `+` joined). `ADVISOR` / `ACTIVITY`
+    rows skip the subject/teacher checks and are only checked by C9. An elective cohort row
+    (`group_id` = `Y2_EL` …) counts as occupying every group of that year when C12 is on. Rows of one
+    combined-year class may share teacher and room across that year's groups (not a C4/C5 clash).
   - Basic checks (`type: 'basic'`) are always enabled (`enabled: true`).
   - Special checks (`type: 'special'`) read their toggle state from `config.constraints`; when off,
     return `enabled: false, passed: true`.
+  - **Switched-off warning:** a timetable is only complete for the brief when `passed` is true **and**
+    no special check has `enabled: false`. If any is off, every place that shows `ผ่านทุกเงื่อนไข`
+    (Timetable badge, sidebar status card, Dashboard result card, Solve result, chatbot validation answer)
+    shows `ผ่าน (ปิดไว้ <n> ข้อ)` in warning colour instead, and the Report page shows the alert in §10.5.
+    The frontend derives this from `checks[]`; no API change is needed.
   - Violation messages are short Thai lines naming the relevant entity and slot (`<day> คาบ <period>`).
 
 Result: `{ passed, checks: [{ id, no, name, type: 'integrity'|'basic'|'special', enabled, passed,
@@ -790,30 +854,46 @@ function mulberry32(seed) {
 ### 5.2 Courses and blocks (`buildBlocks`)
 - Course = `{ id, subjectId, groups[], hours, teachers[], rooms = ctx.roomsFor(subject), kind }`.
   Problems: no teacher `<subject> (<g+g>) ไม่มีครูที่สอนได้`; no room `... ไม่มีห้องที่ใช้ได้ตามเงื่อนไข`.
-- Walk `registrations` in order, skipping 0-hour subjects, and create courses (`kind = 'normal'`,
-  or special kinds defined by user constraints).
-- *(Auto-derived from §1.3: add special course / block construction rules if defined.)*
+- Walk `registrations` in order, skipping `practicum_y4` and 0-hour subjects, and create courses:
+  - `elective_set` (elective, C12 on), once per cohort: `subjectId` = cohort id, `groups` = that year's
+    groups, `hours` = the elective hours, `teachers` = every teacher of the set, `sportRooms` = every
+    venue of the set (C11 on), `theoryPool` = `theoryRoomsForElective(year)`, `subItems` =
+    `[{ subjectId, teachers, sportRoom }]`. Problem if the pool is too small:
+    `ชุดวิชาเลือก <name> (<setId>) ต้องการ <n> ห้องทฤษฎี แต่มีเพียง <m> ห้อง`.
+  - `elective_single` (elective, C12 off): one course per elective subject, `groups = []`, its own room
+    and venue.
+  - `combined_year` (C13 on), once per subject: `groups` = all groups of that year, rooms = LectureHalls,
+    both co-teachers.
+  - `normal`: one group; `sportRoom` = `sportRoomFor(subject)` for `ทักษะและการสอนกีฬา` when C11 is on
+    (problem `<subject> (<g>) ไม่มีสนามกีฬาที่ตรงกัน` if none).
+- Every block of a course uses **all** of the course's teachers at once (co-teaching, C7).
 - Blocks: split hours by `splitHours(h, maxBlock)`: n = ceil(h / max(1, maxBlock)), sizes `floor(h/n)`,
-  the first `h % n` get +1 (6→[3,3], 5→[5], 7→[4,3]), or assign `fixed = { day, slots }` if required by
-  a user-defined constraint. Block = `{ id, course, len, fixed }`; `course.blockIds` lists its blocks.
+  the first `h % n` get +1 (6→[3,3], 5→[5], 7→[4,3]). With `maxBlock = 4` every subject here is a single
+  block (2, 3 or 4 periods), so the 4 periods of a combined-year class are always consecutive.
+  Block = `{ id, course, len, fixed: null }`; `course.blockIds` lists its blocks.
 
 ### 5.3 Board
 State: maps `group` (`g|slot`→block), `teacher` (`t|slot`), `room` (`r|slot`), `dayLoad` (`g|dayIdx`→periods),
-`place[blockId]` (`{ day, slots, teacher, room }` or null), `courseTeacher` (course → `{ id, refs }`),
+`place[blockId]` (`{ day, slots, teachers, room?, rooms, theoryRooms? }` or null),
 `unplaced` = `new Set(blocks ids 0..n-1)`. `clear()` resets everything (same Set order).
+The constructor precomputes `windowsByDayLen` (`dayIdx|len` → runs of `len` slots of `daySlots` with
+consecutive period numbers, so a block never crosses period 5 or Wed 8–9).
 
 - `options(b, rng)` → feasible placements, in this order:
-  - teachers = the course's held teacher if any (all blocks of a course use one teacher), else `course.teachers`.
-  - positions: `b.fixed` alone, or for each `dayIdx` in order and each start `i` (0…) a window of `b.len`
-    consecutive entries of `daySlots[dayIdx]`. If `course.blockIds.length ≤ days.length`, skip days already
-    used by another placed block of the same course (spread blocks over days).
-  - keep a position if every course group is free in all its slots (and passes any user-defined slot/load
-    constraints); then for each teacher (in order) free in all slots (and passing any user-defined teacher
-    constraints), call `pickRoom` and push `{ day, slots, teacher, room }` if a room was found.
+  - positions: for each `dayIdx` in order, each window of `windowsByDayLen`. If
+    `course.blockIds.length ≤ days.length`, skip days already used by another placed block of the same
+    course (spread blocks over days).
+  - keep a position if every course group is free in all its slots and `dayLoad + len ≤ maxPeriodsPerDay`
+    (8); then **every** course teacher must be free in all slots and, for an executive, outside the C8
+    meeting slots.
+  - `elective_set`: all `sportRooms` free, then `pickElectiveRooms` picks one free theory room per
+    sub-item → push `{ day, slots, teachers, rooms: [...theoryRooms, ...sportRooms], theoryRooms }`.
+  - other kinds: `sportRoom` (if any) free, then `pickRoom` → push `{ day, slots, teachers, room,
+    rooms: [room, sportRoom?] }`.
 - `pickRoom(course, slots, rng)`: first, the room of any already-placed block of the course that is free
   in all slots (no rng used). Otherwise `start = floor(rng() * rooms.length)` and scan rooms cyclically
-  from `start`; return the first free one (satisfying any user-defined room constraints), or null.
-- `assign` / `unassign` update all maps, `dayLoad`, `courseTeacher` refs (delete at 0) and `unplaced`
+  from `start`; return the first free one, or null.
+- `assign` / `unassign` update all maps, `dayLoad` and `unplaced`
   (`unassign` re-adds the id at the **end** of the Set).
 - Constructor also builds `groupBlocks`: Map group → its blocks (block id order).
 - `score(b, opt)` = Σ over slots (+3 if period > `latestPreferredPeriod`) + Σ over groups `dayLoad(g, day) × 0.3`
@@ -829,8 +909,13 @@ State: maps `group` (`g|slot`→block), `teacher` (`t|slot`), `room` (`r|slot`),
   +3 per occupied slot with period > `latestPreferredPeriod`; + `(last - first + 1 - n) × 2` (gaps);
   then with `loads` = periods per day and `avg` their mean, + Σ `(load - avg)² × 0.3`.
   `totalCost()` = Σ over groups.
-- `toRows()`: for each block in id order, each slot, each group → row. Sort by group_id
+- `toRows()`: for each block in id order, each slot: `elective_set` → one row per sub-item with
+  `group_id` = cohort id, `room_id` = `<theory room>+<venue>`; `elective_single` → one cohort row;
+  others → one row per group. `teacher_id` = teachers joined by `+`; `room_id` = `<room>+<venue>` when
+  there is a venue. Then, if C9 is on, add `ADVISOR` (Wed period 8) and `ACTIVITY` (Wed period 9) rows for
+  every group of years 1–3 in its `home_room` with `teacher_id` `-` (none for year 4). Sort by group_id
   (`localeCompare` numeric) then by the slot's index in `slotsById` order.
+  `totalCost()` and `groupCost()` run over `activeGroups` only.
 
 ### 5.4 Phase 1: DFS with MRV and restarts
 ```
@@ -884,7 +969,12 @@ collects progress messages into `log`).
 
 ### 6.1 `diagnose(data, config, { probeSeconds = 4, onProgress })`
 1. `capacityChecks(ctx)` → findings `{ level: 'error'|'warn'|'ok', area, message }`:
-   - *(Auto-derived from §1.3: add capacity checks matching the Basic/Special constraints.)*
+   - group (area `กลุ่ม`, error): a group's required periods (its subjects + one elective per set it
+     belongs to) exceed the usable slots per week (38 with C9 on);
+   - teacher (area `ครูผู้สอน`, error): weekly load (a combined-year class counted once) exceeds the usable
+     slots, minus 4 for an executive when C8 is on;
+   - room (area `ห้องเรียน`, error, C12 on): an elective set has more subjects than theory rooms in
+     `theoryRoomsForElective(year)`.
    - If no findings → one `ok` finding (area `ความจุ`).
    - Data errors from the context are added with area `ข้อมูล`.
 2. Probes: solve with the current constraints (`เงื่อนไขปัจจุบัน`) using `timeLimitSec = probeSeconds`. If it
@@ -1220,7 +1310,7 @@ theory `ทฤษฎี (คาบ)`, practice `ปฏิบัติ (คาบ
   (numbered list of user-defined basic constraints, badge `เปิดเสมอ`),
   `Seed ที่บันทึกไว้` (detailed Seed Library with search, filter `ทั้งหมด`/`ปักหมุด`/`Snapshot`, `นำเข้า Seed (.json)`, rich cards showing seed tile, name, note, tags, pin/snapshot/validation badges, soft cost, row count, savedBy, timestamp, and actions: `ใช้ทันที` (apply), `โหลดค่า`, `ปักหมุด`, `แก้ไข` modal, `ส่งออก .json`, and delete with confirm).
   Right: `พารามิเตอร์อัลกอริทึมและเงื่อนไข` (Random/Snapshot seed + shuffle button, `เวลาสูงสุด (วินาที)`,
-  `คาบติดกันสูงสุดต่อบล็อก`, `คาบสูงสุดต่อวัน`, last-saved timestamp, `บันทึก Config`, plus expandable `ตั้งค่าขั้นสูง` for `breakPeriod`, `latestPreferredPeriod`, `homeroomHours`, `jointGroupSize`, `leaderMeeting`, `activitySlot`), `โปรไฟล์ Config และสำรอง/กู้คืน` (save/load/delete named Config Profiles, `ส่งออก Config + Snapshots (.json)`, `นำเข้า Config (.json)`, `คืนค่าเริ่มต้น`), `ข้อมูลหัวกระดาษตาราง` (college, semester, year,
+  `คาบติดกันสูงสุดต่อบล็อก`, `คาบสูงสุดต่อวัน`, last-saved timestamp, `บันทึก Config`, plus expandable `ตั้งค่าขั้นสูง` for `breakPeriod`, `latestPreferredPeriod`, `execMeeting` (day + periods, default Tue 1–4), `wedFixed` (day + advisor / activity period, default Wed 8 / 9)), `โปรไฟล์ Config และสำรอง/กู้คืน` (save/load/delete named Config Profiles, `ส่งออก Config + Snapshots (.json)`, `นำเข้า Config (.json)`, `คืนค่าเริ่มต้น`), `ข้อมูลหัวกระดาษตาราง` (college, semester, year,
   `หัวหน้างานพัฒนาหลักสูตร`, deputy, director, a switch `เผยแพร่ตารางสาธารณะ`, `ที่อยู่สาธารณะสำหรับลิงก์และ QR (ไม่บังคับ)`, button `บันทึก`).
 - Run row (same column split, equal heights): left card `ค้นหา seed ที่ดีที่สุด` (select 10/20/30/50 +
   `เริ่มค้นหา`; before a search an explanation of soft cost; after, a ranked table: อันดับ, Seed, Soft cost
@@ -1235,21 +1325,21 @@ theory `ทฤษฎี (คาบ)`, practice `ปฏิบัติ (คาบ
 **Manual Timetable Builder** (`/manual`, `pages/manual/manual.ts`, under Sidebar `จัดตารางสอน → จัดตารางสอนด้วยมือ`): full end-to-end manual timetable studio for building or editing an entire schedule from scratch.
 - Workspace toolbar: group selector with per-group progress (`placed/required` periods), overall progress bar across all groups, `โหลดตารางที่บันทึกไว้`, `ล้างเฉพาะกลุ่มนี้`, `เริ่มจากตารางเปล่า` (clear all), `ย้อนกลับ` (30-step Undo), `ตรวจเงื่อนไข (14 ข้อ)` (`POST /api/timetable/validate` on draft rows), and `บันทึกตารางใช้งานจริง` (`PUT /api/timetable` with automatic Snapshot Seed, admin only).
 - Seed bar & Save Seed modal: displays `Seed ตารางปัจจุบัน` + current seed number + `คัดลอก Seed` button, `Seed จากการแก้ไข (นำกลับไปใส่คืนค่าได้)` badge when `isSnapshot` is true (plus `ต้นทาง <baseSeed>` when different), active special constraints, `Soft cost`, unsaved-edit hint when `dirty()`, and `บันทึก seed` button (admin only; opens the detailed Save Seed modal with name, note, tags + quick tag chips, pin, and `includeSnapshot`; resets after each `บันทึกตารางใช้งานจริง` so newly generated Snapshot Seeds can be saved immediately).
-- Left pane (Subject Palette + Brush): registered subjects for the selected group + `HOMEROOM` (if C11 enabled), search & status filters (`ทั้งหมด`/`ยังไม่ครบ`/`ครบแล้ว`), progress badges, draggable subject cards; selecting a subject opens Brush controls (`1–4` consecutive periods, defaults to `1` and stays pinned to user selection without auto-resetting, eligible teachers from `teach.csv` + optional all teachers, C9-recommended rooms, optional C13 joint-group partner).
-- Right pane (Interactive Grid + Inspector): Mon–Fri × Period 1–12 grid that **automatically merges consecutive periods** of the same subject, teacher, and room (without crossing break period 5) into single `colspan` cells, with real-time cell availability overlay (green = valid, amber = conflict with tooltip, grey = break). Supports click-to-place (`brushSpan` periods), **HTML5 drag-from-palette** onto empty cells, **drag-to-move / swap merged spans**, **in-cell draggable slice pills** (`หั่น 1`, `หั่น 2`, … for `span > 1`, DOM-safe with CSS opacity + `document:dragend`/`Esc` cleanup) with **green valid-drop target highlights**, 1-click span remove (`×`), and live validation results card. Supports `?group=<id>` query param.
+- Left pane (Subject Palette + Brush): registered subjects for the selected group (the fixed `ADVISOR` / `ACTIVITY` rows of C9 are placed automatically and locked), search & status filters (`ทั้งหมด`/`ยังไม่ครบ`/`ครบแล้ว`), progress badges, draggable subject cards; selecting a subject opens Brush controls (`1–4` consecutive periods, defaults to `1` and stays pinned to user selection without auto-resetting, eligible teachers from `teach.csv` (both co-teachers together) + optional all teachers, rooms allowed by C10/C11 (`roomsFor` + the sport venue), and combined-year (C13) or elective-set (C12) subjects placed for all groups of the year at once).
+- Right pane (Interactive Grid + Inspector): Mon–Fri × Period 1–9 grid that **automatically merges consecutive periods** of the same subject, teacher, and room (without crossing break period 5) into single `colspan` cells, with real-time cell availability overlay (green = valid, amber = conflict with tooltip, grey = break). Supports click-to-place (`brushSpan` periods), **HTML5 drag-from-palette** onto empty cells, **drag-to-move / swap merged spans**, **in-cell draggable slice pills** (`หั่น 1`, `หั่น 2`, … for `span > 1`, DOM-safe with CSS opacity + `document:dragend`/`Esc` cleanup) with **green valid-drop target highlights**, 1-click span remove (`×`), and live validation results card. Supports `?group=<id>` query param.
 
 **My Groups** (`/my-groups`, `pages/my-groups/my-groups.ts`, shown in the teacher Sidebar): powered by `GET /api/teacher/my-groups`, displays teacher KPI summary (teacher name/id, responsible groups count, total teaching periods, subjects taught) and a card grid of ONLY the student groups where the teacher is advisor (`ครูที่ปรึกษา`) and/or teaches (`สอน <n> คาบ`), listing the subjects taught in each group with 1-click actions (`ดูตารางเรียนกลุ่มนี้`, `PDF / พิมพ์`, `Excel`).
 
 **Teacher Hub** (`/teacher-hub`, `pages/teacher-hub/teacher-hub.ts`, Sidebar `คำขอและบันทึกครู` for teachers / `คำขอจากครู` for admins):
 - Tab 1 `คำขอย้าย/เปลี่ยนคาบสอน`: teachers pick one of their scheduled spans to request a move or room change with a reason; live conflict check (`POST /api/teacher/requests/check`) warns immediately if the target clashes with another group/teacher/room or violates constraints and disables submit when blocked; admins see live feasibility on every pending card and can 1-click `อนุมัติและปรับตารางอัตโนมัติ` (runs `moveSpan`/`editSpan` + saves Snapshot Seed) or `ไม่อนุมัติ` with an admin note.
-- Tab 2 `แจ้งคาบไม่สะดวกสอน`: supports both **specific-date advance notice** (`datedSlots`: date picker `YYYY-MM-DD`, all-day or specific period pills `1–12`, reason) AND interactive 5-day × 12-period weekly recurring matrix (`slots`); admins can **approve** (actually removes/suspends the teacher's scheduled periods in those slots so the teacher is genuinely free) or **reject** with a note; teachers see live approval status (`รออนุมัติ` / `อนุมัติแล้ว (หยุดสอนได้)` / `ไม่อนุมัติ`).
+- Tab 2 `แจ้งคาบไม่สะดวกสอน`: supports both **specific-date advance notice** (`datedSlots`: date picker `YYYY-MM-DD`, all-day or specific period pills `1–9`, reason) AND interactive 5-day × 9-period weekly recurring matrix (`slots`); admins can **approve** (actually removes/suspends the teacher's scheduled periods in those slots so the teacher is genuinely free) or **reject** with a note; teachers see live approval status (`รออนุมัติ` / `อนุมัติแล้ว (หยุดสอนได้)` / `ไม่อนุมัติ`).
 - Tab 3 `บันทึกช่วยจำรายวิชา` (teacher private): create, tag by subject/group, pin/unpin, and delete private teaching notes persisted in `teacher-hub.json`.
 
 **Timetable** (`/timetable`, query `view` and `id`): eyebrow `ขั้นตอนที่ 3`, h1 `ตารางเรียน`; actions
 `ย้อนกลับ (<n>)` (admin, up to 20 steps), `แชร์ / QR`, `Excel`, primary `PDF / พิมพ์` (opens the PDF preview).
 - Controls card: segmented view (กลุ่มเรียน / ครูผู้สอน / ห้องเรียน), prev/next buttons and a select whose
   first option is `— แสดงทั้งหมด (ทุกกลุ่มเรียน|ครูทุกคน|ทุกห้อง) —`, then the badge `ผ่านทุกเงื่อนไข` or
-  `ไม่ผ่าน <n> เงื่อนไข`. Below it: Smart Highlight & Filter bar (`ทั้งหมด`, `เรียนร่วม (C13)`, `กิจกรรม (C12)`, `โฮมรูม (C11)`, `คาบดึก (>9)` + live search input `ค้นหา/ไฮไลต์ วิชา ครู ห้อง…` with match counter badge — highlights matching spans in amber/gold and dims non-matches).
+  `ไม่ผ่าน <n> เงื่อนไข`. Below it: Smart Highlight & Filter bar (`ทั้งหมด`, `เรียนรวมทั้งชั้นปี (C13)`, `วิชาเลือก (C12)`, `วิชากีฬา (C11)`, `พบที่ปรึกษา/กิจกรรม (C9)` + live search input `ค้นหา/ไฮไลต์ วิชา ครู ห้อง…` with match counter badge — highlights matching spans in amber/gold and dims non-matches).
 - Multi-Seed Switcher & 2-Seed Comparison (`GET /api/timetable/seed-grid`, `GET /api/timetable/compare` with in-memory LRU cache and instant Snapshot resolution):
   - Mode toggle: `ดูตารางเดี่ยว` (single-seed preview) vs `เปรียบเทียบ 2 Seed` (side-by-side / stacked comparison), plus quick `+ โหลด Seed` numeric input (`seed:<number>`) to load any arbitrary seed on the fly alongside `ตารางปัจจุบัน` and all saved seeds from `GET /api/seeds`, with a `×` remove button on custom-loaded seeds.
   - Single mode: clickable Seed chips showing seed number, label, and Soft cost; previewing a non-current seed shows a status banner with `กลับไปตารางปัจจุบัน` and (Admin only) 1-click `ตั้ง Seed นี้เป็นตารางใช้งานจริง`.
@@ -1267,7 +1357,9 @@ theory `ทฤษฎี (คาบ)`, practice `ปฏิบัติ (คาบ
 **Report** (`/report`): eyebrow `Validator อิสระจาก solver`, h1 `ผลตรวจเงื่อนไข`; filter `ทั้งหมด` /
 `เฉพาะที่ไม่ผ่าน`; 4 summary cards (ผ่าน, ไม่ผ่าน, ไม่ได้เปิดใช้, แถว output); cards per type (integrity,
 basic, special) listing each check as an expandable row (number, name, status badge) with its violations
-(and `และอีก n รายการ`).
+(and `และอีก n รายการ`). When any special check is off (§4), a warning alert sits above the cards:
+`ปิดเงื่อนไขพิเศษไว้ <n> ข้อ (ข้อ <list>) ตารางนี้ยังไม่ตรงตามโจทย์ครบทุกข้อ` with a link to `/solve`, and
+the switched-off rows show the badge `ปิดอยู่` in warning colour (not `ผ่าน`).
 
 **Export** (`/export`): eyebrow `ขั้นตอนที่ 4`, h1 `ส่งออกไฟล์`; four format cards: `output.csv` (download),
 `Excel (.xlsx)` (all in one file + per view), `PDF (A4 แนวนอน)` (preview buttons per view), `QR code ติดหน้าห้อง`
@@ -1323,11 +1415,15 @@ Files: `chatbot/nlu.js` (entities + intents), `chatbot/bot.js` (handlers), `chat
 ### 11.1 Entities — `extract(text, ctx)`
 `normalize`: Thai digits → Arabic, collapse spaces, trim, lowercase. Returns `{ groups, teachers, rooms,
 subjects, days, periods, numbers, seed, randomSeed, on, off, target? }`.
-- groups: `g1`/`G 1` → `G1` if it exists; a group name in the text; `กลุ่ม(เรียน)?(ที่)? <n>`.
-- teachers: `t7`/`T07` → `T07`; teacher first names (prefix ครู/นางสาว/นาง/นาย removed). Remove all subject
-  names from the text first; a first name that also occurs inside any subject name counts only as `ครู<name>`.
-- rooms: `r5201`, `ห้อง 5201`, `ห้องเรียน r5201` → match room_name or `R<digits>`.
-- subjects: `\d{5}-\d{4}` ids that exist; subject names (≥ 4 chars) in the text (plus any special subject keywords defined in §1.3).
+- groups: the group id (`y1_1` → `Y1_1`), the group name (`ปี 1/1`), or the short form `1/1` → `Y1_<n>`.
+- teachers: the teacher id (`t07` / `T07` → `T07`), the full name, or the first name (leading title removed:
+  `ผศ.ดร.`, `รศ.ดร.`, `อ.ดร.`, `ผศ.`, `รศ.`, `อ.สิบเอก`, `อ.`, `ครู`, `อาจารย์`, `นาย`, `นางสาว`, `นาง`). Remove all subject names from the text first; a first name that also
+  occurs inside any subject name counts only as `ครู<name>` / `อ.<name>` / `อาจารย์<name>`.
+- rooms: the room id (`r321`, `hall1`, `comp1`, `f09_n`), `ห้อง 321` / `ห้องเรียน 321` for a numeric room
+  name, or any room name of 3+ characters (`ห้องประชุม 1`, `สระว่ายน้ำ`).
+- subjects: the subject id as written in the data, a Thai prefix + space + 6 digits (`มศ 041017`,
+  `พล 051383`; matched after `normalize`, so extra spaces do not matter); subject names (≥ 4 chars) in the
+  text; `พบ(อาจารย์)?ที่ปรึกษา` → `ADVISOR`.
 - days: จันทร์ อังคาร พุธ พฤหัส ศุกร์ เสาร์ อาทิตย์ / mon…fri; `วันนี้` and `พรุ่งนี้` (Asia/Bangkok).
 - periods: `คาบ(ที่)? a [-|–|ถึง b]` → the range (existing periods only).
 - target (move): `ไป(ที่|ยัง)? (วัน)? <day>? … คาบ(ที่)? <n>` → `{ day | null, period }`.
@@ -1408,13 +1504,13 @@ Handler behaviour (Thai text, `**bold**` allowed):
   above it: header (bot avatar, `ผู้ช่วยจัดตาราง`, green dot `ออฟไลน์ · ตอบทันที`, clear and minimise
   buttons), message list (user bubbles right in maroon, bot bubbles left; cards rendered per type; time
   under each), typing dots while busy, suggestion chips, and a composer (textarea, Enter sends,
-  Shift+Enter new line, max 500, placeholder `พิมพ์คำถาม เช่น ตาราง G1 วันจันทร์`). Escape closes.
+  Shift+Enter new line, max 500, placeholder `พิมพ์คำถาม เช่น ตาราง Y1_1 วันจันทร์`). Escape closes.
 
 ---
 
 ## 12. Test contract (`backend/test/`, written first from Part D.2 — then do not weaken)
 
-`npm test` runs three scripts with the CSV data in `CSV/`. They require these modules and exports:
+`npm test` runs three scripts with the CSV data in `csv/` (lowercase; read through the seed adapter). They require these modules and exports:
 
 | module | exports used |
 |---|---|
@@ -1437,7 +1533,7 @@ All test output lines must end with `PASS`.
 ## 13. Docker and run
 
 - `Dockerfile` (Part D.5): stage 1 `node:24-alpine` builds the frontend (`npm ci`, `npx ng build
-  --configuration production`); stage 2 installs backend production deps; stage 3 copies `CSV/`, backend
+  --configuration production`); stage 2 installs backend production deps; stage 3 copies `csv/`, backend
   `src`, `fonts`, `assets`, `data`, `node_modules` and `frontend/dist`, runs as `node`, `TZ=Asia/Bangkok`,
   exposes 3000, healthcheck `GET /api/health`, `CMD node src/server.js` from `/app/backend`.
 - `docker-compose.yml` (Part D.5): service `timetable`, image `timetable-ai:latest`, container
