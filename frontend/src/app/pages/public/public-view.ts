@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Api } from '../../core/api';
+import { ThemeService } from '../../core/theme';
 import { Grid, View } from '../../core/models';
 import { TimetableSheetComponent } from '../../shared/timetable-sheet';
 import { PdfPreviewComponent } from '../../shared/pdf-preview';
@@ -13,7 +14,10 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
     <div class="pub-wrap">
       <header class="pub-bar">
         <div class="pub-inner row" style="justify-content: space-between">
-          <a routerLink="/p" class="btn sm ghost">← กลับหน้ารวมตาราง</a>
+          <div class="row" style="gap: 10px">
+            <a routerLink="/p" class="btn sm ghost">← กลับหน้ารวมตาราง</a>
+            <span class="small muted">{{ theme.appearance().siteName }}</span>
+          </div>
           <div class="row">
             <a class="btn sm" [href]="'/api/public/ics?view=' + view() + '&id=' + id()" download>เพิ่มลงปฏิทิน (.ics)</a>
             <button class="btn sm primary" type="button" (click)="pdfUrl.set('/api/public/pdf?view=' + view() + '&id=' + id() + '&inline=1')">PDF / พิมพ์</button>
@@ -64,6 +68,7 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
 })
 export class PublicViewPage implements OnInit {
   private api = inject(Api);
+  theme = inject(ThemeService);
   view = input.required<View>();
   id = input.required<string>();
 
@@ -71,6 +76,7 @@ export class PublicViewPage implements OnInit {
   pdfUrl = signal<string | null>(null);
 
   async ngOnInit() {
+    await this.theme.load();
     this.grid.set(await this.api.getPublicGrid(this.view(), this.id()));
   }
 }

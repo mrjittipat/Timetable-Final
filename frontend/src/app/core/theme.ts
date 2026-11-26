@@ -46,7 +46,10 @@ export interface PublicAppearance {
   carouselEnabled: boolean;
   carouselAutoplay: boolean;
   carouselIntervalSec: number;
-  carouselHeight: 'sm' | 'md' | 'lg';
+  carouselHeight: 'sm' | 'md' | 'lg' | 'xl' | 'auto';
+  carouselFit: 'cover' | 'contain' | 'fill';
+  carouselPosition: 'center' | 'top' | 'bottom';
+  carouselRadius: 'none' | 'sm' | 'md' | 'lg';
   carouselSlides: PublicCarouselSlide[];
   cardColumns: 2 | 3 | 4;
   showFooter: boolean;
@@ -144,6 +147,9 @@ export const DEFAULT_PUBLIC_APPEARANCE: PublicAppearance = {
   carouselAutoplay: true,
   carouselIntervalSec: 5,
   carouselHeight: 'md',
+  carouselFit: 'cover',
+  carouselPosition: 'center',
+  carouselRadius: 'md',
   carouselSlides: [],
   cardColumns: 3,
   showFooter: true,

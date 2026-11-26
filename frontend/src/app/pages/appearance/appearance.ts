@@ -427,6 +427,15 @@ const FOCUS_LABELS: Record<string, string> = {
                     <input class="input" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.loginButtonText" (ngModelChange)="patchPublic({ loginButtonText: $event })" />
                   </div>
                 </div>
+                @if (draft().public.heroStyle === 'image' && auth.isAdmin()) {
+                  <div class="row" (mouseenter)="focus.set('pubHero')">
+                    <input #pubBgIn type="file" accept="image/png,image/jpeg,image/webp" hidden (change)="onPublicBgFile($event)" />
+                    <button class="btn sm" type="button" (click)="pubBgIn.click()"><app-icon name="upload" [size]="14" /> อัปโหลดภาพพื้นหลังส่วนหัว</button>
+                    @if (draft().public.heroBgDataUrl) {
+                      <button class="btn sm ghost" type="button" (click)="patchPublic({ heroBgDataUrl: '' })">ลบภาพพื้นหลัง</button>
+                    }
+                  </div>
+                }
                 <div class="grid-2">
                   <label class="toggle-box" [class.on]="draft().public.showLogo" (mouseenter)="focus.set('pubLogo')">
                     <div class="toggle-box-text"><span class="toggle-box-title">แสดงโลโก้สถาบัน</span></div>
@@ -440,6 +449,22 @@ const FOCUS_LABELS: Record<string, string> = {
                     <div class="toggle-box-right">
                       <span class="toggle-state">{{ draft().public.showStats ? 'เปิด' : 'ปิด' }}</span>
                       <span class="switch"><input type="checkbox" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.showStats" (ngModelChange)="patchPublic({ showStats: $event })" /><span></span></span>
+                    </div>
+                  </label>
+                </div>
+                <div class="grid-2">
+                  <label class="toggle-box" [class.on]="draft().public.showLoginButton" (mouseenter)="focus.set('pubLoginBtn')">
+                    <div class="toggle-box-text"><span class="toggle-box-title">แสดงปุ่มเข้าสู่ระบบผู้ดูแล</span></div>
+                    <div class="toggle-box-right">
+                      <span class="toggle-state">{{ draft().public.showLoginButton ? 'เปิด' : 'ปิด' }}</span>
+                      <span class="switch"><input type="checkbox" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.showLoginButton" (ngModelChange)="patchPublic({ showLoginButton: $event })" /><span></span></span>
+                    </div>
+                  </label>
+                  <label class="toggle-box" [class.on]="draft().public.showFooter" (mouseenter)="focus.set('pubFooter')">
+                    <div class="toggle-box-text"><span class="toggle-box-title">แสดงข้อความส่วนท้าย</span></div>
+                    <div class="toggle-box-right">
+                      <span class="toggle-state">{{ draft().public.showFooter ? 'เปิด' : 'ปิด' }}</span>
+                      <span class="switch"><input type="checkbox" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.showFooter" (ngModelChange)="patchPublic({ showFooter: $event })" /><span></span></span>
                     </div>
                   </label>
                 </div>
@@ -470,13 +495,65 @@ const FOCUS_LABELS: Record<string, string> = {
               <div class="card-head"><h3>ภาพสไลด์ Carousel (ประชาสัมพันธ์หน้าสาธารณะ)</h3></div>
               <div class="card-body" (mouseenter)="focus.set('pubCarousel')">
                 <label class="toggle-box" [class.on]="draft().public.carouselEnabled">
-                  <div class="toggle-box-text"><span class="toggle-box-title">เปิดแสดงภาพสไลด์ Carousel</span><span class="toggle-box-sub">รองรับสูงสุด 8 รูป (แปลงขนาด 1280×640 อัตโนมัติ)</span></div>
+                  <div class="toggle-box-text"><span class="toggle-box-title">เปิดแสดงภาพสไลด์ Carousel</span><span class="toggle-box-sub">รองรับสูงสุด 8 รูป (คงสัดส่วนภาพต้นฉบับ สูงสุด 1600px)</span></div>
                   <div class="toggle-box-right">
                     <span class="toggle-state">{{ draft().public.carouselEnabled ? 'เปิด' : 'ปิด' }}</span>
                     <span class="switch"><input type="checkbox" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.carouselEnabled" (ngModelChange)="patchPublic({ carouselEnabled: $event })" /><span></span></span>
                   </div>
                 </label>
                 @if (draft().public.carouselEnabled) {
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>รูปแบบการจัดวางภาพ</label>
+                      <div class="segmented">
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.carouselFit || 'cover') === 'contain'" (click)="patchPublic({ carouselFit: 'contain' })">พอดีกรอบ</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.carouselFit || 'cover') === 'cover'" (click)="patchPublic({ carouselFit: 'cover' })">ภาพใหญ่เต็มกรอบ</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselFit === 'fill'" (click)="patchPublic({ carouselFit: 'fill' })">ยืดเต็มกรอบ</button>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>ขนาดความสูงของสไลด์</label>
+                      <div class="segmented">
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselHeight === 'sm'" (click)="patchPublic({ carouselHeight: 'sm' })">เล็ก</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.carouselHeight || 'md') === 'md'" (click)="patchPublic({ carouselHeight: 'md' })">กลาง</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselHeight === 'lg'" (click)="patchPublic({ carouselHeight: 'lg' })">ใหญ่</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselHeight === 'xl'" (click)="patchPublic({ carouselHeight: 'xl' })">ใหญ่มาก</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselHeight === 'auto'" (click)="patchPublic({ carouselHeight: 'auto' })">ตามภาพ</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="grid-2">
+                    <div class="field">
+                      <label>ตำแหน่งมุมมองภาพ (โฟกัส)</label>
+                      <div class="segmented">
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselPosition === 'top'" (click)="patchPublic({ carouselPosition: 'top' })">ด้านบน</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.carouselPosition || 'center') === 'center'" (click)="patchPublic({ carouselPosition: 'center' })">กึ่งกลาง</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselPosition === 'bottom'" (click)="patchPublic({ carouselPosition: 'bottom' })">ด้านล่าง</button>
+                      </div>
+                    </div>
+                    <div class="field">
+                      <label>ความโค้งมุมกรอบภาพ</label>
+                      <div class="segmented">
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselRadius === 'none'" (click)="patchPublic({ carouselRadius: 'none' })">เหลี่ยม</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselRadius === 'sm'" (click)="patchPublic({ carouselRadius: 'sm' })">น้อย</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="(draft().public.carouselRadius || 'md') === 'md'" (click)="patchPublic({ carouselRadius: 'md' })">กลาง</button>
+                        <button type="button" [disabled]="!auth.isAdmin()" [class.active]="draft().public.carouselRadius === 'lg'" (click)="patchPublic({ carouselRadius: 'lg' })">มาก</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="grid-2">
+                    <label class="toggle-box" [class.on]="draft().public.carouselAutoplay">
+                      <div class="toggle-box-text"><span class="toggle-box-title">เลื่อนสไลด์อัตโนมัติ</span></div>
+                      <div class="toggle-box-right">
+                        <span class="toggle-state">{{ draft().public.carouselAutoplay ? 'เปิด' : 'ปิด' }}</span>
+                        <span class="switch"><input type="checkbox" [disabled]="!auth.isAdmin()" [ngModel]="draft().public.carouselAutoplay" (ngModelChange)="patchPublic({ carouselAutoplay: $event })" /><span></span></span>
+                      </div>
+                    </label>
+                    <div class="field">
+                      <label>หน่วงเวลาเปลี่ยนภาพ (วินาที): {{ draft().public.carouselIntervalSec || 5 }} วิ</label>
+                      <input type="range" min="2" max="15" step="1" [disabled]="!auth.isAdmin() || !draft().public.carouselAutoplay" [ngModel]="draft().public.carouselIntervalSec || 5" (ngModelChange)="patchPublic({ carouselIntervalSec: +$event })" />
+                    </div>
+                  </div>
                   @if (auth.isAdmin()) {
                     <div class="row">
                       <input #carIn type="file" multiple accept="image/png,image/jpeg,image/webp" hidden (change)="onCarouselFiles($event)" />
@@ -488,7 +565,7 @@ const FOCUS_LABELS: Record<string, string> = {
                   @for (sl of draft().public.carouselSlides; track sl.id; let i = $index) {
                     <div class="row" style="border: 1px solid var(--border); padding: 8px; border-radius: 8px">
                       <img [src]="sl.imageDataUrl" alt="slide" style="width: 72px; height: 42px; object-fit: cover; border-radius: 6px" />
-                      <input class="input" style="flex: 1" placeholder="หัวข้อสไลด์" [disabled]="!auth.isAdmin()" [ngModel]="sl.title" (ngModelChange)="updateSlide(i, { title: $event })" />
+                      <input class="input" style="flex: 1" placeholder="หัวข้อสไลด์ (ไม่บังคับ)" [disabled]="!auth.isAdmin()" [ngModel]="sl.title" (ngModelChange)="updateSlide(i, { title: $event })" />
                       @if (auth.isAdmin()) {
                         <button class="btn sm ghost" style="color: var(--danger)" type="button" (click)="removeSlide(i)">ลบ</button>
                       }
@@ -876,8 +953,8 @@ const FOCUS_LABELS: Record<string, string> = {
             @if (tab() === 'public') {
               <div class="mock-browser">
                 <div class="mock-bar"><span class="mb-dot" style="background:#f87171"></span><span class="mb-dot" style="background:#fbbf24"></span><span class="mb-dot" style="background:#34d399"></span><span class="mb-url">/p · ตารางเรียนสาธารณะ</span></div>
-                <div class="hl-zone" [class.hl-on]="isHl('pubHero')" [style.background]="draft().public.heroStyle === 'solid' ? draft().primaryColor : 'linear-gradient(135deg,' + draft().primaryColor + ',#2a000b)'"
-                     style="color: #fff; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px">
+                <div class="hl-zone" [class.hl-on]="isHl('pubHero')" [style.background]="publicPreviewHeroBg()"
+                     style="color: #fff; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; background-size: cover; background-position: center">
                   <div class="row" style="gap: 8px">
                     @if (draft().public.showLogo) {
                       <div class="mini-logo-tile hl-zone" [class]="draft().logoShape" [class.hl-on]="isHl('pubLogo')"><img [src]="draft().logoDataUrl || 'logo.png'" alt="logo" /></div>
@@ -892,14 +969,28 @@ const FOCUS_LABELS: Record<string, string> = {
                   }
                 </div>
                 <div style="padding: 10px; display: flex; flex-direction: column; gap: 8px">
+                  @if (draft().public.showStats) {
+                    <div class="hl-zone" [class.hl-on]="isHl('pubStats')" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px">
+                      <div style="background: var(--maroon-50); padding: 5px 7px; border-radius: 6px; font-size: 8.5px; text-align: center">กลุ่มเรียน <strong>14</strong></div>
+                      <div style="background: var(--maroon-50); padding: 5px 7px; border-radius: 6px; font-size: 8.5px; text-align: center">อาจารย์ <strong>22</strong></div>
+                      <div style="background: var(--maroon-50); padding: 5px 7px; border-radius: 6px; font-size: 8.5px; text-align: center">ห้อง/สนาม <strong>38</strong></div>
+                    </div>
+                  }
                   @if (draft().public.announcementEnabled) {
                     <div class="alert hl-zone" [class]="draft().public.announcementTone" [class.hl-on]="isHl('pubAnnouncement')" style="padding: 6px 8px; font-size: 9.5px">
                       {{ draft().public.announcementText || 'ข้อความประกาศข่าวสาร' }}
                     </div>
                   }
                   @if (draft().public.carouselEnabled && draft().public.carouselSlides.length > 0) {
-                    <div class="hl-zone" [class.hl-on]="isHl('pubCarousel')" style="border-radius: 8px; overflow: hidden; height: 86px; position: relative">
-                      <img [src]="draft().public.carouselSlides[0].imageDataUrl" alt="slide" style="width: 100%; height: 100%; object-fit: cover" />
+                    <div class="hl-zone" [class.hl-on]="isHl('pubCarousel')"
+                         [style.border-radius]="carouselPreviewRadius()"
+                         [style.height]="carouselPreviewHeight()"
+                         style="overflow: hidden; position: relative; background: var(--maroon-50)">
+                      <img [src]="draft().public.carouselSlides[0].imageDataUrl" alt="slide"
+                           [style.object-fit]="draft().public.carouselFit || 'cover'"
+                           [style.object-position]="draft().public.carouselPosition || 'center'"
+                           [style.height]="draft().public.carouselHeight === 'auto' ? 'auto' : '100%'"
+                           style="width: 100%; display: block" />
                     </div>
                   }
                   <div class="hl-zone" [class.hl-on]="isHl('pubCards')" [style.grid-template-columns]="'repeat(' + draft().public.cardColumns + ', 1fr)'" style="display: grid; gap: 6px">
@@ -908,7 +999,9 @@ const FOCUS_LABELS: Record<string, string> = {
                     <div style="background: var(--surface); border: 1px solid var(--border); padding: 7px; border-radius: 6px; font-size: 9px"><strong>ปี 2/1</strong></div>
                     <div style="background: var(--surface); border: 1px solid var(--border); padding: 7px; border-radius: 6px; font-size: 9px"><strong>ปี 3/1</strong></div>
                   </div>
-                  <div class="hl-zone" [class.hl-on]="isHl('pubFooter')" style="font-size: 8px; color: var(--text-muted); text-align: center">{{ draft().public.footerNote || draft().footerText }}</div>
+                  @if (draft().public.showFooter !== false) {
+                    <div class="hl-zone" [class.hl-on]="isHl('pubFooter')" style="font-size: 8px; color: var(--text-muted); text-align: center">{{ draft().public.footerNote || draft().footerText }}</div>
+                  }
                 </div>
               </div>
               <div class="callout-map">
@@ -1257,6 +1350,32 @@ export class AppearancePage implements OnInit, OnDestroy {
     return `linear-gradient(145deg, ${d.primaryColor} 0%, ${d.accentColor} 55%, #2a000b 100%)`;
   }
 
+  publicPreviewHeroBg() {
+    const d = this.draft();
+    if (d.public.heroStyle === 'image' && d.public.heroBgDataUrl) {
+      return `linear-gradient(180deg, rgba(20,0,8,0.48), rgba(20,0,8,0.72)), url(${d.public.heroBgDataUrl})`;
+    }
+    if (d.public.heroStyle === 'solid') return d.primaryColor;
+    return `linear-gradient(135deg, ${d.primaryColor}, #2a000b)`;
+  }
+
+  carouselPreviewHeight() {
+    const h = this.draft().public.carouselHeight || 'md';
+    if (h === 'sm') return '64px';
+    if (h === 'lg') return '118px';
+    if (h === 'xl') return '150px';
+    if (h === 'auto') return 'auto';
+    return '90px';
+  }
+
+  carouselPreviewRadius() {
+    const r = this.draft().public.carouselRadius || 'md';
+    if (r === 'none') return '0px';
+    if (r === 'sm') return '5px';
+    if (r === 'lg') return '16px';
+    return '10px';
+  }
+
   previewShadow() {
     const map: Record<string, string> = {
       none: 'none',
@@ -1362,13 +1481,25 @@ export class AppearancePage implements OnInit, OnDestroy {
     }
   }
 
+  async onPublicBgFile(ev: Event) {
+    const f = (ev.target as HTMLInputElement).files?.[0];
+    if (!f) return;
+    try {
+      const raw = await this.readFile(f);
+      const jpg = await this.rasterizeDataUrl(raw, 1440, 640, 'image/jpeg', 0.84);
+      this.patchPublic({ heroBgDataUrl: jpg });
+    } catch (err) {
+      this.toasts.error(this.api.errorMessage(err));
+    }
+  }
+
   async onCarouselFiles(ev: Event) {
     const files = Array.from((ev.target as HTMLInputElement).files || []);
     const slides = [...this.draft().public.carouselSlides];
     for (const f of files) {
       if (slides.length >= 8) break;
       const raw = await this.readFile(f);
-      const jpg = await this.rasterizeDataUrl(raw, 1280, 640, 'image/jpeg', 0.82);
+      const jpg = await this.rasterizeDataUrl(raw, 1600, 1200, 'image/jpeg', 0.85);
       slides.push({ id: `${Date.now()}-${Math.random()}`, imageDataUrl: jpg, title: '', caption: '' });
     }
     this.patchPublic({ carouselSlides: slides });

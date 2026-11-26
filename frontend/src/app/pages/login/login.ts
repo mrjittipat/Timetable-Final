@@ -13,6 +13,7 @@ import { IconComponent } from '../../shared/icon';
   template: `
     <div class="login-grid">
       <section class="left-pane" [style.background-image]="leftBg()">
+        <div class="login-pat" [class]="theme.appearance().loginPattern || 'grid'"></div>
         <div class="left-top">
           <div class="logo-tile" [class]="theme.appearance().logoShape || 'rounded'">
             @if (theme.appearance().logoDataUrl) {
@@ -154,12 +155,20 @@ import { IconComponent } from '../../shared/icon';
   styles: `
     .login-grid { display: grid; grid-template-columns: 1.15fr 1fr; min-height: 100vh; }
     .left-pane {
+      position: relative; overflow: hidden;
       background:
         radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12), transparent 45%),
         radial-gradient(circle at 80% 80%, rgba(255,255,255,0.08), transparent 40%),
-        linear-gradient(155deg, var(--maroon-700) 0%, var(--maroon-950) 100%);
+        linear-gradient(155deg, var(--maroon-700) 0%, var(--maroon-600) 45%, var(--maroon-950) 100%);
+      background-size: cover; background-position: center;
       color: #fff; padding: 40px 48px; display: flex; flex-direction: column; justify-content: space-between;
     }
+    .login-pat { position: absolute; inset: 0; pointer-events: none; opacity: 0.14; }
+    .login-pat.grid { background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 24px 24px; }
+    .login-pat.dots { background-image: radial-gradient(#fff 1.5px, transparent 1.5px); background-size: 16px 16px; }
+    .login-pat.waves { background-image: repeating-radial-gradient(circle at 0 100%, transparent 0 14px, rgba(255,255,255,0.5) 15px 16px); }
+    .login-pat.none { display: none; }
+    .left-top, .left-mid, .left-foot { position: relative; z-index: 1; }
     .left-top { display: flex; align-items: center; gap: 14px; }
     .logo-tile {
       width: 52px; height: 52px; border-radius: 14px; background: #fff; color: var(--maroon-700);
@@ -249,7 +258,7 @@ export class LoginPage implements OnInit {
   }
 
   async ngOnInit() {
-    await this.auth.ensureLoaded();
+    await Promise.all([this.theme.load(), this.auth.ensureLoaded()]);
     if (this.auth.user()) this.router.navigate(['/']);
     if (this.route.snapshot.queryParamMap.get('mode') === 'register') {
       this.openRegister();
