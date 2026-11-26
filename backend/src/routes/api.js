@@ -303,6 +303,97 @@ router.post('/data/reset', wrap((_req, res) => {
   res.json({ ok: true, warnings: context().warnings });
 }));
 
+router.post('/data/auto-advisors', wrap((_req, res) => {
+  const data = store.getData();
+  const cfg = loadConfig();
+  const ctx = buildContext(data, cfg);
+
+  // Compute each teacher's weekly teaching load from registrations
+  const loadMap = new Map();
+  for (const t of data.teacher) loadMap.set(t.teacher_id, 0);
+  const seenCombined = new Set();
+  for (const reg of ctx.registrations) {
+    const sub = ctx.subjects.get(reg.subject_id);
+    if (!sub || sub.special_mode === 'practicum_y4') continue;
+    if (sub.special_mode === 'combined_year') {
+      if (seenCombined.has(sub.subject_id)) continue;
+      seenCombined.add(sub.subject_id);
+    }
+    const h = ctx.hours(sub.subject_id);
+    for (const tid of ctx.teachersBySubject.get(sub.subject_id) || []) {
+      loadMap.set(tid, (loadMap.get(tid) || 0) + h);
+    }
+  }
+
+  // Find teachers who teach each year (normal + combined + electives of that year)
+  const teachersByYear = new Map();
+  for (const reg of ctx.registrations) {
+    const sub = ctx.subjects.get(reg.subject_id);
+    if (!sub) continue;
+    const yr = sub.year;
+    if (!teachersByYear.has(yr)) teachersByYear.set(yr, new Set());
+    for (const tid of ctx.teachersBySubject.get(sub.subject_id) || []) {
+      teachersByYear.get(yr).add(tid);
+    }
+  }
+
+  const usedTeachers = new Set();
+  const assigned = [];
+  const updatedGroups = data.student_group.map((g) => ({ ...g }));
+
+  const sortByLoad = (ids) =>
+    [...ids].sort((a, b) => {
+      const la = loadMap.get(a) ?? 0;
+      const lb = loadMap.get(b) ?? 0;
+      if (la !== lb) return la - lb;
+      const ra = ctx.teachers.get(a)?.role === 'Leader' ? 1 : 0;
+      const rb = ctx.teachers.get(b)?.role === 'Leader' ? 1 : 0;
+      if (ra !== rb) return ra - rb;
+      return a.localeCompare(b, undefined, { numeric: true });
+    });
+
+  for (const g of updatedGroups) {
+    if (g.year === 4) {
+      g.advisor = '';
+      continue;
+    }
+    const yearPool = [...(teachersByYear.get(g.year) || [])].filter((tid) => !usedTeachers.has(tid));
+    const fallbackPool = data.teacher.map((t) => t.teacher_id).filter((tid) => !usedTeachers.has(tid));
+    const pool = yearPool.length > 0 ? yearPool : fallbackPool;
+    const pickedId = sortByLoad(pool)[0];
+    if (pickedId) {
+      usedTeachers.add(pickedId);
+      const t = ctx.teachers.get(pickedId);
+      g.advisor = t ? t.teacher_name : pickedId;
+      assigned.push({
+        group_id: g.group_id,
+        group_name: g.group_name,
+        teacher_id: pickedId,
+        teacher_name: g.advisor,
+        teachingLoad: loadMap.get(pickedId) ?? 0,
+      });
+    }
+  }
+
+  store.replaceEntity('student_group', updatedGroups);
+
+  // Sync ADVISOR rows in existing timetable if one is present
+  const tt = store.getTimetable();
+  if (tt && tt.rows && tt.rows.length > 0) {
+    const advisorIdByGroup = new Map(assigned.map((a) => [a.group_id, a.teacher_id]));
+    const nextRows = tt.rows.map((r) =>
+      r.subject_id === 'ADVISOR' && advisorIdByGroup.has(r.group_id)
+        ? { ...r, teacher_id: advisorIdByGroup.get(r.group_id) }
+        : r
+    );
+    const nextData = store.getData();
+    const validation = validate(nextRows, nextData, cfg);
+    store.setTimetable(nextRows, { ...tt.meta, validationPassed: validation.passed });
+  }
+
+  res.json({ ok: true, assigned, groups: updatedGroups });
+}));
+
 router.post('/data/:entity', wrap((req, res) => {
   const row = store.addRow(req.params.entity, req.body || {});
   res.status(201).json({ row });

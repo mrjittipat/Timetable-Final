@@ -48,12 +48,12 @@ export function entitiesFor(view, ctx) {
       title: `กลุ่มเรียน ${g.group_name} (${g.group_id})`,
       subtitle: g.year === 4
         ? `ฝึกปฏิบัติการสอนในสถานศึกษา (ไม่มีตารางเรียน) · จำนวน ${g.student_count} คน`
-        : `ห้องประจำ: ${ctx.rooms.get(g.home_room)?.room_name || g.home_room} · จำนวนนักศึกษา ${g.student_count} คน`,
+        : `${g.advisor ? `ครูที่ปรึกษา: ${g.advisor} · ` : ''}ห้องประจำ: ${ctx.rooms.get(g.home_room)?.room_name || g.home_room} · จำนวนนักศึกษา ${g.student_count} คน`,
       heading: 'ตารางเรียน',
       info: [
         ['กลุ่มเรียน', `${g.group_name} (${g.group_id})`],
+        ['ครูที่ปรึกษา', g.advisor || '-'],
         ['ห้องประจำ', ctx.rooms.get(g.home_room)?.room_name || g.home_room || '-'],
-        ['จำนวนนักศึกษา', `${g.student_count} คน`],
       ],
       signer: 'อาจารย์ที่ปรึกษา',
       signerName: (g.advisor || '').split('/')[0].trim(),
@@ -180,7 +180,8 @@ export function buildGrid(view, id, rows, ctx) {
       const subjects = new Set(list.map((r) => r.subject_id));
       const clash = view === 'group' ? list.length > 1 : subjects.size > 1;
 
-      const isSpecial = Boolean(SPECIAL_SUBJECTS[first.subject_id]);
+      const isActivity = first.subject_id === 'ACTIVITY';
+      const hasTeacher = splitIds(first.teacher_id).length > 0;
       const entry = {
         start: pm.period,
         span: 1,
@@ -188,7 +189,7 @@ export function buildGrid(view, id, rows, ctx) {
         display_code: displaySubjectCode(first.subject_id),
         subject_name: subjectName(first.subject_id, ctx),
         teacher_id: first.teacher_id,
-        teacher: isSpecial ? '' : (first._electiveDisplay || teacherNames(first.teacher_id, ctx)),
+        teacher: isActivity ? '' : (first._electiveDisplay || (hasTeacher ? teacherNames(first.teacher_id, ctx) : '')),
         room: first.room_id,
         room_name: first._electiveDisplay ? 'ห้องทฤษฎี + สนามกีฬา' : roomNames(first.room_id, ctx),
         groups,

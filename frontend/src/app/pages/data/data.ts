@@ -97,9 +97,16 @@ const FIELD_LABELS: Record<string, string> = {
             <span class="small muted">แสดง {{ filteredRows().length }} จาก {{ totalRows() }} แถว</span>
           </div>
           @if (auth.isAdmin()) {
-            <button class="btn primary sm" type="button" (click)="openDialog(null)">
-              <app-icon name="plus" [size]="15" /> เพิ่มข้อมูล
-            </button>
+            <div class="row">
+              @if (activeTab() === 'student_group') {
+                <button class="btn sm" type="button" (click)="autoAssignAdvisors()">
+                  <app-icon name="sparkles" [size]="15" /> จัดสรรครูที่ปรึกษาอัตโนมัติ
+                </button>
+              }
+              <button class="btn primary sm" type="button" (click)="openDialog(null)">
+                <app-icon name="plus" [size]="15" /> เพิ่มข้อมูล
+              </button>
+            </div>
           }
         </div>
 
@@ -157,7 +164,16 @@ const FIELD_LABELS: Record<string, string> = {
             @for (f of activeFields(); track f) {
               <div class="field">
                 <label>{{ fieldLabel(f) }} <span class="mono muted small">({{ f }})</span></label>
-                <input class="input" [type]="isInt(f) ? 'number' : 'text'" [(ngModel)]="formRow[f]" />
+                @if (activeTab() === 'student_group' && f === 'advisor') {
+                  <select class="input" [(ngModel)]="formRow[f]">
+                    <option value="">— ยังไม่กำหนด —</option>
+                    @for (t of teachersList(); track t['teacher_id']) {
+                      <option [value]="t['teacher_name']">{{ t['teacher_id'] }} {{ t['teacher_name'] }}</option>
+                    }
+                  </select>
+                } @else {
+                  <input class="input" [type]="isInt(f) ? 'number' : 'text'" [(ngModel)]="formRow[f]" />
+                }
               </div>
             }
           </div>
@@ -206,6 +222,7 @@ export class DataPage {
   activeSchema = computed(() => this.state.data()?.schema?.[this.activeTab()]);
   activeFields = computed(() => this.activeSchema()?.fields || []);
   totalRows = computed(() => (this.state.data()?.data?.[this.activeTab()] || []).length);
+  teachersList = computed(() => this.state.data()?.data?.['teacher'] || []);
 
   filteredRows = computed(() => {
     const list = this.state.data()?.data?.[this.activeTab()] || [];
@@ -268,6 +285,22 @@ export class DataPage {
       await this.api.deleteRow(this.activeTab(), key);
       this.toasts.success('ลบข้อมูลแล้ว');
       await this.state.refreshData();
+    } catch (err) {
+      this.toasts.error(this.api.errorMessage(err));
+    }
+  }
+
+  async autoAssignAdvisors() {
+    const ok = await this.confirm.ask({
+      title: 'จัดสรรครูที่ปรึกษาอัตโนมัติ',
+      message: 'ระบบจะเลือกอาจารย์ที่มีภาระสอนน้อยที่สุดในแต่ละชั้นปีที่สอน (1 คนต่อ 1 กลุ่ม ไม่ซ้ำกัน) และอัปเดตคาบพบครูที่ปรึกษาวันพุธ คาบ 8 ให้ทันที',
+      confirmText: 'จัดสรรอัตโนมัติ',
+    });
+    if (!ok) return;
+    try {
+      const res = await this.api.autoAssignAdvisors();
+      await this.state.refresh();
+      this.toasts.success(`จัดสรรครูที่ปรึกษาครบ ${res.assigned?.length || 0} กลุ่มแล้ว`);
     } catch (err) {
       this.toasts.error(this.api.errorMessage(err));
     }

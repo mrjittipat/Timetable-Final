@@ -588,11 +588,15 @@ class Board {
       for (const g of ctx.activeGroups) {
         const room = g.home_room || 'R321';
         if (advSlot) {
+          const advName = String(g.advisor || '').split('/')[0].trim();
+          const advTeacher = advName
+            ? [...ctx.teachers.values()].find((t) => t.teacher_name === advName || t.teacher_id === advName)
+            : null;
           rows.push({
             group_id: g.group_id,
             timeslot_id: advSlot,
             subject_id: 'ADVISOR',
-            teacher_id: '-',
+            teacher_id: advTeacher ? advTeacher.teacher_id : '-',
             room_id: room,
           });
         }

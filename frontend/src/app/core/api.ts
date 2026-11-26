@@ -17,6 +17,7 @@ export class Api {
 
   getData() { return firstValueFrom(this.http.get<DataResponse>('/api/data')); }
   resetData() { return firstValueFrom(this.http.post<any>('/api/data/reset', {})); }
+  autoAssignAdvisors() { return firstValueFrom(this.http.post<any>('/api/data/auto-advisors', {})); }
   addRow(entity: string, row: Record<string, any>) { return firstValueFrom(this.http.post<any>(`/api/data/${entity}`, row)); }
   updateRow(entity: string, key: string, row: Record<string, any>) { return firstValueFrom(this.http.put<any>(`/api/data/${entity}/${encodeURIComponent(key)}`, row)); }
   deleteRow(entity: string, key: string) { return firstValueFrom(this.http.delete<any>(`/api/data/${entity}/${encodeURIComponent(key)}`)); }
