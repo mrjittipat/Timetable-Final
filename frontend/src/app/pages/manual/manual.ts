@@ -73,8 +73,8 @@ import { IconComponent } from '../../shared/icon';
                                  [attr.draggable]="auth.isAdmin() && cell.span.subject_id !== 'ADVISOR' && cell.span.subject_id !== 'ACTIVITY'"
                                  (dragstart)="onDragStart(d.key, cell.span)"
                                  (dragend)="onDragEnd()">
-                              <div class="code">{{ cell.span.subject_id }}</div>
-                              <div class="meta">{{ cell.span.teacher }}</div>
+                              <div class="code">{{ cell.span.display_code || cell.span.subject_id }}</div>
+                              @if (cell.span.teacher) { <div class="meta">{{ cell.span.teacher }}</div> }
                               <div class="room">{{ cell.span.room_name || cell.span.room }}</div>
                             </div>
                           </td>

@@ -158,6 +158,7 @@ export interface GridSpan {
   start: number;
   span: number;
   subject_id: string;
+  display_code?: string;
   subject_name: string;
   teacher_id: string;
   teacher: string;

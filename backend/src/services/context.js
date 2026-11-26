@@ -1,12 +1,12 @@
 export const SPECIAL_SUBJECTS = {
-  ADVISOR: 'พบอาจารย์ที่ปรึกษา',
-  ACTIVITY: 'กิจกรรม',
+  ADVISOR: 'พบครูที่ปรึกษา',
+  ACTIVITY: 'คาบกิจกรรม',
 };
 
 export const ELECTIVE_SET_META = {
-  Y2_EL: { id: 'Y2_EL', year: 2, name: 'ทักษะและการสอนกีฬาขั้นสูง', label: 'ปี 2 (วิชาเลือก)' },
-  Y3_EL1: { id: 'Y3_EL1', year: 3, name: 'การตัดสินกีฬา', label: 'ปี 3 (วิชาเลือก: การตัดสิน)' },
-  Y3_EL2: { id: 'Y3_EL2', year: 3, name: 'กลวิธีการฝึกกีฬา', label: 'ปี 3 (วิชาเลือก: กลวิธีการฝึก)' },
+  Y2_EL: { id: 'Y2_EL', year: 2, name: 'ทักษะและการสอนกีฬาขั้นสูง', short: 'วิชาทางเลือก', label: 'ปี 2 (วิชาทางเลือก)' },
+  Y3_EL1: { id: 'Y3_EL1', year: 3, name: 'การตัดสินกีฬา', short: 'วิชาทางเลือก (การตัดสิน)', label: 'ปี 3 (วิชาทางเลือก: การตัดสิน)' },
+  Y3_EL2: { id: 'Y3_EL2', year: 3, name: 'กลวิธีการฝึกกีฬา', short: 'วิชาทางเลือก (กลวิธีการฝึก)', label: 'ปี 3 (วิชาทางเลือก: กลวิธีการฝึก)' },
 };
 
 export const THEORY_GROUP_TYPES = new Set([

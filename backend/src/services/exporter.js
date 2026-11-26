@@ -49,7 +49,7 @@ function resolveEntities(ctx, view = 'group', id = null) {
 }
 
 function cellLines(view, span) {
-  const code = span.subject_id;
+  const code = span.display_code || span.subject_id;
   let who = '';
   if (view === 'teacher') who = (span.group_labels || span.groups || []).join('+');
   else if (view === 'group') who = span.teacher || '';

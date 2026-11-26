@@ -28,8 +28,8 @@ import { Grid, GridSpan, View } from '../core/models';
                           [class.clash]="sp.clash" (click)="spanClick.emit({ day: d.key, dayLabel: d.label, span: sp })">
                     <div class="agenda-time">คาบ {{ sp.span > 1 ? sp.start + '–' + (sp.start + sp.span - 1) : sp.start }}</div>
                     <div class="agenda-info">
-                      <div class="code">{{ sp.subject_id }} · {{ sp.subject_name }}</div>
-                      <div class="meta">{{ whoText(sp) }} @if (view() !== 'room') { · {{ sp.room_name || sp.room }} }</div>
+                      <div class="code">{{ sp.display_code || sp.subject_id }}@if (sp.subject_name && sp.subject_name !== (sp.display_code || sp.subject_id)) { · {{ sp.subject_name }} }</div>
+                      <div class="meta">{{ whoText(sp) }} @if (view() !== 'room') { @if (whoText(sp)) { · } {{ sp.room_name || sp.room }} }</div>
                     </div>
                   </button>
                 }
@@ -65,11 +65,13 @@ import { Grid, GridSpan, View } from '../core/models';
                                 [class.hl]="isMatch(cell.span)"
                                 [class.dim]="hasSearch() && !isMatch(cell.span)"
                                 (click)="spanClick.emit({ day: d.key, dayLabel: d.label, span: cell.span })">
-                          <span class="s-code">{{ cell.span.subject_id }}</span>
-                          @if (cell.span.span > 1) {
+                          <span class="s-code">{{ cell.span.display_code || cell.span.subject_id }}</span>
+                          @if (cell.span.span > 1 && cell.span.subject_name !== (cell.span.display_code || cell.span.subject_id)) {
                             <span class="s-name">{{ cell.span.subject_name }}</span>
                           }
-                          <span class="s-meta">{{ whoText(cell.span) }}</span>
+                          @if (whoText(cell.span)) {
+                            <span class="s-meta">{{ whoText(cell.span) }}</span>
+                          }
                           @if (view() !== 'room') {
                             <span class="s-room">{{ cell.span.room_name || cell.span.room }}</span>
                           }

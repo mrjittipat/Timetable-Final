@@ -199,7 +199,7 @@ import { PdfPreviewComponent } from '../../shared/pdf-preview';
             <button class="btn icon ghost" type="button" (click)="activeSpan.set(null)"><app-icon name="x" [size]="18" /></button>
           </div>
           <div class="dialog-body">
-            <div><strong>รายวิชา:</strong> {{ detail.span.subject_id }} {{ detail.span.subject_name }}</div>
+            <div><strong>รายวิชา:</strong> {{ detail.span.display_code || detail.span.subject_id }}@if (detail.span.subject_name && detail.span.subject_name !== (detail.span.display_code || detail.span.subject_id)) { — {{ detail.span.subject_name }} }</div>
             <div><strong>เวลา:</strong> วัน{{ detail.dayLabel }} คาบ {{ detail.span.start }}@if (detail.span.span > 1) { –{{ detail.span.start + detail.span.span - 1 }} } ({{ detail.span.span }} คาบ)</div>
             <div><strong>อาจารย์ผู้สอน:</strong> {{ detail.span.teacher }}</div>
             <div><strong>ห้อง/สนาม:</strong> {{ detail.span.room_name || detail.span.room }}</div>

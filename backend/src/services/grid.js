@@ -14,8 +14,14 @@ export const VIEWS = ['group', 'teacher', 'room'];
 
 export function subjectName(id, ctx) {
   if (SPECIAL_SUBJECTS[id]) return SPECIAL_SUBJECTS[id];
-  if (ELECTIVE_SET_META[id]) return `วิชาเลือก: ${ELECTIVE_SET_META[id].name}`;
+  if (ELECTIVE_SET_META[id]) return ELECTIVE_SET_META[id].name;
   return ctx.subjects.get(id)?.subject_name || id;
+}
+
+export function displaySubjectCode(id) {
+  if (SPECIAL_SUBJECTS[id]) return SPECIAL_SUBJECTS[id];
+  if (ELECTIVE_SET_META[id]) return ELECTIVE_SET_META[id].short;
+  return id;
 }
 
 export function teacherNames(teacherIdRaw, ctx) {
@@ -174,13 +180,15 @@ export function buildGrid(view, id, rows, ctx) {
       const subjects = new Set(list.map((r) => r.subject_id));
       const clash = view === 'group' ? list.length > 1 : subjects.size > 1;
 
+      const isSpecial = Boolean(SPECIAL_SUBJECTS[first.subject_id]);
       const entry = {
         start: pm.period,
         span: 1,
         subject_id: first.subject_id,
+        display_code: displaySubjectCode(first.subject_id),
         subject_name: subjectName(first.subject_id, ctx),
         teacher_id: first.teacher_id,
-        teacher: first._electiveDisplay || teacherNames(first.teacher_id, ctx),
+        teacher: isSpecial ? '' : (first._electiveDisplay || teacherNames(first.teacher_id, ctx)),
         room: first.room_id,
         room_name: first._electiveDisplay ? 'ห้องทฤษฎี + สนามกีฬา' : roomNames(first.room_id, ctx),
         groups,
