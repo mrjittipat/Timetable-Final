@@ -525,14 +525,38 @@ router.get('/public/appearance', (_req, res) => {
 router.put('/appearance', wrap((req, res) => {
   const cur = loadConfig();
   const body = req.body || {};
+  const ap = body.appearance || body;
+  const DATA_URL_RE = /^data:image\/(png|jpeg|webp|svg\+xml|gif);base64,[A-Za-z0-9+/=]+$/;
+  const checkImg = (val, maxBytes, label) => {
+    if (!val) return;
+    if (!DATA_URL_RE.test(val)) throw store.httpError(400, `${label}: รูปแบบภาพไม่ถูกต้อง`);
+    const b64 = val.split(',')[1] || '';
+    if (Math.ceil((b64.length * 3) / 4) > maxBytes) {
+      throw store.httpError(400, `${label}: ขนาดไฟล์เกินกำหนด`);
+    }
+  };
+  checkImg(ap.logoDataUrl, 600 * 1024, 'โลโก้เว็บ');
+  checkImg(ap.pdf?.logoDataUrl, 600 * 1024, 'โลโก้ PDF');
+  checkImg(ap.loginBgDataUrl, 1500 * 1024, 'ภาพพื้นหลัง Login');
+  checkImg(ap.public?.heroBgDataUrl, 1500 * 1024, 'ภาพพื้นหลังหน้าสาธารณะ');
+  if (Array.isArray(ap.public?.carouselSlides)) {
+    if (ap.public.carouselSlides.length > 8) throw store.httpError(400, 'Carousel รองรับสูงสุด 8 รูป');
+    for (const sl of ap.public.carouselSlides) {
+      checkImg(sl?.imageDataUrl, 1500 * 1024, 'รูปสไลด์ Carousel');
+    }
+  }
+  if (ap.customCss && String(ap.customCss).length > 20000) {
+    throw store.httpError(400, 'Custom CSS ต้องไม่เกิน 20,000 ตัวอักษร');
+  }
+
   const nextAppearance = {
     ...cur.appearance,
-    ...(body.appearance || body),
-    pdf: { ...cur.appearance.pdf, ...((body.appearance || body).pdf || {}) },
-    public: { ...cur.appearance.public, ...((body.appearance || body).public || {}) },
+    ...ap,
+    pdf: { ...cur.appearance.pdf, ...(ap.pdf || {}) },
+    public: { ...cur.appearance.public, ...(ap.public || {}) },
   };
   const nextDoc = body.syncCollege && nextAppearance.siteName
-    ? { ...cur.document, college: nextAppearance.siteName }
+    ? { ...cur.document, college: String(nextAppearance.siteName).trim() }
     : cur.document;
   const saved = saveConfig({ ...cur, appearance: nextAppearance, document: nextDoc });
   res.json({ appearance: saved.appearance, document: saved.document });

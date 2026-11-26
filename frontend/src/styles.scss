@@ -223,6 +223,13 @@ a:hover { text-decoration: underline; }
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }
 
+body[data-density='compact'] .page { padding: 14px; gap: 12px; }
+body[data-density='compact'] .card-head { padding: 10px 14px; }
+body[data-density='compact'] .card-body { padding: 12px 14px; gap: 10px; }
+body[data-density='spacious'] .page { padding: 32px; gap: 26px; }
+body[data-density='spacious'] .card-head { padding: 18px 22px; }
+body[data-density='spacious'] .card-body { padding: 22px; gap: 18px; }
+
 @media (max-width: 960px) {
   .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
   .page { padding: 16px; }

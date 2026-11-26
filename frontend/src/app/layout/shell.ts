@@ -17,7 +17,7 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
     <div class="shell" [class.collapsed]="collapsed()" [class.mobile-open]="mobileOpen()">
       <aside class="sidebar" [class]="'sidebar style-' + (theme.appearance()['sidebarStyle'] || 'gradient')">
         <div class="brand">
-          <div class="brand-logo">
+          <div class="brand-logo" [class]="theme.appearance()['logoShape'] || 'rounded'">
             @if (theme.appearance()['logoDataUrl']) {
               <img [src]="theme.appearance()['logoDataUrl']" alt="logo" />
             } @else {
@@ -26,7 +26,7 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
           </div>
           @if (!collapsed()) {
             <div class="brand-text">
-              <div class="b-name">{{ theme.appearance()['siteName'] || 'คณะศึกษาศาสตร์ มกช. กระบี่' }}</div>
+              <div class="b-name">{{ theme.appearance()['siteName'] || 'วิทยาลัยเทคนิคพังงา' }}</div>
               <div class="b-sub">{{ theme.appearance()['siteSubtitle'] || 'ระบบจัดตารางเรียนอัตโนมัติ' }}</div>
             </div>
           }
@@ -186,6 +186,8 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
       width: 38px; height: 38px; border-radius: 10px; background: #fff; color: var(--maroon-700);
       display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
     }
+    .brand-logo.circle { border-radius: 50%; }
+    .brand-logo.square { border-radius: 3px; }
     .brand-logo img { width: 100%; height: 100%; object-fit: cover; }
     .b-name { font-weight: 700; font-size: 13.5px; line-height: 1.25; }
     .b-sub { font-size: 11px; opacity: 0.8; }

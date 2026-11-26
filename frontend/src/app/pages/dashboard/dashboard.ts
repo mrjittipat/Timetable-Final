@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { AppState } from '../../core/state';
 import { AuthService } from '../../core/auth';
 import { Api } from '../../core/api';
-import { ThemeService } from '../../core/theme';
+import { ThemeService, hexToRgb } from '../../core/theme';
 import { IconComponent } from '../../shared/icon';
 
 @Component({
@@ -14,9 +14,9 @@ import { IconComponent } from '../../shared/icon';
     <div class="page">
       <div class="hero">
         <div>
-          <div class="eyebrow-w">{{ theme.appearance()['siteName'] || 'คณะศึกษาศาสตร์ มหาวิทยาลัยการกีฬาแห่งชาติ วิทยาเขตกระบี่' }}</div>
+          <div class="eyebrow-w">{{ theme.appearance()['siteName'] || 'วิทยาลัยเทคนิคพังงา' }}</div>
           <h1>{{ theme.appearance()['heroTitle'] || 'ระบบจัดตารางเรียนอัตโนมัติ' }}</h1>
-          <p>{{ theme.appearance()['heroSubtitle'] || 'CSP Search + Simulated Annealing พร้อมตัวตรวจเงื่อนไขแบบอิสระ 14 ข้อ' }}</p>
+          <p>{{ theme.appearance()['heroSubtitle'] || 'CSP Search + Simulated Annealing พร้อมตัวตรวจเงื่อนไขแบบอิสระ' }}</p>
         </div>
         <div class="row">
           @if (auth.isTeacher()) {
@@ -326,6 +326,7 @@ export class DashboardPage implements OnInit {
   heatBg(val: number, max: number) {
     const ratio = max > 0 ? Math.min(1, val / max) : 0;
     const alpha = 0.08 + ratio * 0.82;
-    return `rgba(128, 0, 32, ${alpha.toFixed(2)})`;
+    const [r, g, b] = hexToRgb(this.theme.appearance().primaryColor || '#800020');
+    return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
   }
 }

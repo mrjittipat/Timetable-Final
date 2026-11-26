@@ -12,33 +12,37 @@ import { IconComponent } from '../../shared/icon';
   imports: [FormsModule, RouterLink, IconComponent],
   template: `
     <div class="login-grid">
-      <section class="left-pane">
+      <section class="left-pane" [style.background-image]="leftBg()">
         <div class="left-top">
-          <div class="logo-tile">
-            @if (theme.appearance()['logoDataUrl']) {
-              <img [src]="theme.appearance()['logoDataUrl']" alt="logo" />
+          <div class="logo-tile" [class]="theme.appearance().logoShape || 'rounded'">
+            @if (theme.appearance().logoDataUrl) {
+              <img [src]="theme.appearance().logoDataUrl" alt="logo" />
             } @else {
               <app-icon name="calendar" [size]="28" />
             }
           </div>
           <div>
-            <div class="site-name">{{ theme.appearance()['siteName'] || 'คณะศึกษาศาสตร์ มกช. กระบี่' }}</div>
-            <div class="site-org">{{ theme.appearance()['organization'] || 'มหาวิทยาลัยการกีฬาแห่งชาติ วิทยาเขตกระบี่' }}</div>
+            <div class="site-name">{{ theme.appearance().siteName || 'วิทยาลัยเทคนิคพังงา' }}</div>
+            <div class="site-org">{{ theme.appearance().organization || 'สำนักงานคณะกรรมการการอาชีวศึกษา' }}</div>
           </div>
         </div>
 
         <div class="left-mid">
-          <span class="pill">{{ theme.appearance()['loginBadge'] || 'SMART TIMETABLE' }}</span>
-          <h1>{{ theme.appearance()['loginHeading'] || 'ระบบจัดตารางเรียนอัตโนมัติ' }}</h1>
-          <p>{{ theme.appearance()['loginDescription'] || 'หลักสูตรศึกษาศาสตรบัณฑิต สาขาพลศึกษา ชั้นปีที่ 1–4 ตรวจครบทุกเงื่อนไข พร้อมใช้งานทั้งคณะ' }}</p>
-          <div class="chips">
-            <span>{{ theme.appearance()['loginChip1'] || 'CSP Search + SA' }}</span>
-            <span>{{ theme.appearance()['loginChip2'] || 'ตรวจครบ 13 เงื่อนไข' }}</span>
-            <span>{{ theme.appearance()['loginChip3'] || 'ส่งออก CSV / Excel / PDF' }}</span>
-          </div>
+          @if (theme.appearance().loginBadge) {
+            <span class="pill">{{ theme.appearance().loginBadge }}</span>
+          }
+          <h1>{{ theme.appearance().loginHeading || 'ระบบจัดตารางเรียนอัตโนมัติ' }}</h1>
+          <p>{{ theme.appearance().loginDescription }}</p>
+          @if (theme.appearance().loginShowChips) {
+            <div class="chips">
+              @if (theme.appearance().loginChip1) { <span>{{ theme.appearance().loginChip1 }}</span> }
+              @if (theme.appearance().loginChip2) { <span>{{ theme.appearance().loginChip2 }}</span> }
+              @if (theme.appearance().loginChip3) { <span>{{ theme.appearance().loginChip3 }}</span> }
+            </div>
+          }
         </div>
 
-        <div class="left-foot">{{ theme.appearance()['loginLeftFooter'] || 'ภาคเรียนที่ 2 ปีการศึกษา 2569 · คณะศึกษาศาสตร์ มกช. กระบี่' }}</div>
+        <div class="left-foot">{{ theme.appearance().loginLeftFooter }}</div>
       </section>
 
       <section class="right-pane">
@@ -79,25 +83,40 @@ import { IconComponent } from '../../shared/icon';
                 </div>
               }
 
-              <div class="reg-cta">
-                <span class="muted small">ยังไม่มีบัญชีอาจารย์ผู้สอน?</span>
-                <button type="button" class="btn ghost sm" (click)="openRegister()">สมัครบัญชีอาจารย์</button>
-              </div>
+              @if (theme.appearance().registerEnabled !== false) {
+                <div class="reg-cta">
+                  <span class="muted small">{{ theme.appearance().registerPromptText }}</span>
+                  <button type="button" class="btn ghost sm" (click)="openRegister()">{{ theme.appearance().registerLinkText }}</button>
+                </div>
+              }
 
-              <div class="divider"><span>หรือ</span></div>
-              <a routerLink="/p" class="btn" style="width: 100%">ดูตารางเรียนสาธารณะ (ไม่ต้องเข้าสู่ระบบ)</a>
+              @if (theme.appearance().loginShowPublicLink !== false) {
+                <div class="divider"><span>หรือ</span></div>
+                <a routerLink="/p" class="btn" style="width: 100%">{{ theme.appearance().loginPublicLinkText }}</a>
+              }
             </div>
           } @else {
             <div class="auth-body">
               <div class="icon-tile"><app-icon name="users" [size]="24" /></div>
-              <h2>สมัครบัญชีอาจารย์ผู้สอน</h2>
-              <p class="muted small">สร้างบัญชีเพื่อดูตารางสอนและส่งคำขอปรับคาบ (รออนุมัติจาก Admin)</p>
+              <h2>{{ theme.appearance().registerTitle }}</h2>
+              <p class="muted small">{{ theme.appearance().registerSubtitle }}</p>
 
               @if (regSuccess()) {
-                <div class="alert success" style="margin-top: 12px">ส่งคำขอสมัครบัญชีแล้ว กรุณารอผู้ดูแลระบบอนุมัติ</div>
+                <div class="alert success" style="margin-top: 12px">{{ theme.appearance().registerPendingTitle }}</div>
               }
               @if (error()) {
                 <div class="alert danger" style="margin-top: 12px">{{ error() }}</div>
+              }
+
+              <div class="role-card">
+                <div class="row" style="justify-content: space-between">
+                  <strong>{{ theme.appearance().registerTeacherLabel }}</strong>
+                  <span class="badge warning">รออนุมัติจาก Admin</span>
+                </div>
+                <div class="small muted">{{ theme.appearance().registerTeacherDesc }}</div>
+              </div>
+              @if (theme.appearance().registerAdminNotice) {
+                <div class="admin-notice">{{ theme.appearance().registerAdminNotice }}</div>
               }
 
               <form (ngSubmit)="submitRegister()" class="form">
@@ -128,7 +147,7 @@ import { IconComponent } from '../../shared/icon';
             </div>
           }
         </div>
-        <div class="right-foot muted small">{{ theme.appearance()['footerText'] || '© คณะศึกษาศาสตร์ มหาวิทยาลัยการกีฬาแห่งชาติ วิทยาเขตกระบี่' }}</div>
+        <div class="right-foot muted small">{{ theme.appearance().footerText || '© วิทยาลัยเทคนิคพังงา · ระบบจัดตารางเรียนอัตโนมัติ' }}</div>
       </section>
     </div>
   `,
@@ -145,6 +164,17 @@ import { IconComponent } from '../../shared/icon';
     .logo-tile {
       width: 52px; height: 52px; border-radius: 14px; background: #fff; color: var(--maroon-700);
       display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .logo-tile.circle { border-radius: 50%; }
+    .logo-tile.square { border-radius: 4px; }
+    .role-card {
+      margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+      border: 1.5px solid var(--maroon-700); background: var(--maroon-50);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .admin-notice {
+      margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+      border: 1px dashed var(--border-strong); font-size: 12px; color: var(--text-muted);
     }
     .logo-tile img { width: 100%; height: 100%; object-fit: cover; }
     .site-name { font-size: 17px; font-weight: 700; }
@@ -211,6 +241,12 @@ export class LoginPage implements OnInit {
   regName = '';
   regUsername = '';
   regPassword = '';
+
+  leftBg() {
+    const bg = this.theme.appearance().loginBgDataUrl;
+    if (bg) return `linear-gradient(180deg, rgba(30,0,10,0.45), rgba(30,0,10,0.75)), url(${bg})`;
+    return '';
+  }
 
   async ngOnInit() {
     await this.auth.ensureLoaded();
