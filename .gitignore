@@ -10,4 +10,4 @@ backend/data/*
 .DS_Store
 Thumbs.db
 *.md
-!README.md
+!/README.md
