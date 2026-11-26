@@ -4,12 +4,12 @@ import { DATA_DIR } from './paths.js';
 
 export const DEFAULT_CONFIG = {
   constraints: {
-    c8_execMeeting: true,
-    c9_wedFixed: true,
-    c10_roomCategory: true,
-    c11_sportDualRoom: true,
-    c12_electiveSync: true,
-    c13_combinedYear: true,
+    r5_theoryRoom: true,
+    r6_computerLab: true,
+    r7_coTeach: true,
+    r8_sportDualRoom: true,
+    r9_electiveSync: true,
+    r10_year4NoSchedule: true,
   },
   params: {
     breakPeriod: 5,
@@ -128,12 +128,16 @@ const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 
 export function mergeConfig(cfg = {}) {
   const c = cfg || {};
+  const constraints = {};
+  for (const [k, v] of Object.entries(DEFAULT_CONFIG.constraints)) {
+    constraints[k] = c.constraints?.[k] !== undefined ? Boolean(c.constraints[k]) : v;
+  }
   return {
     savedSeeds: Array.isArray(c.savedSeeds) ? c.savedSeeds : [],
     savedProfiles: Array.isArray(c.savedProfiles) ? c.savedProfiles : [],
     updatedAt: c.updatedAt || null,
     document: { ...DEFAULT_CONFIG.document, ...(c.document || {}) },
-    constraints: { ...DEFAULT_CONFIG.constraints, ...(c.constraints || {}) },
+    constraints,
     params: {
       ...DEFAULT_CONFIG.params,
       ...(c.params || {}),

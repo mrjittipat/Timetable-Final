@@ -37,8 +37,8 @@ function buildBlocks(ctx) {
     const h = ctx.hours(sub.subject_id);
     if (h <= 0) continue;
 
-    // Synchronized elective set (C12 ON)
-    if (sub.special_mode === 'elective' && c.c12_electiveSync) {
+    // Synchronized elective set (Rule 9 ON)
+    if (sub.special_mode === 'elective' && c.r9_electiveSync) {
       const setId = reg.group_id;
       if (electiveHandled.has(setId)) continue;
       electiveHandled.add(setId);
@@ -48,18 +48,17 @@ function buildBlocks(ctx) {
       const allTeachers = [];
       const allSportRooms = [];
       for (const sid of es.subjects) {
-        const sObj = ctx.subjects.get(sid);
         const tList = ctx.teachersBySubject.get(sid) || [];
         if (tList.length === 0) problems.push(`${sid} (${setId}) ไม่มีครูที่สอนได้`);
         const spRoom = ctx.sportRoomFor(sid);
-        if (c.c11_sportDualRoom && !spRoom) problems.push(`${sid} (${setId}) ไม่มีสนามกีฬาที่ตรงกัน`);
+        if (c.r8_sportDualRoom && !spRoom) problems.push(`${sid} (${setId}) ไม่มีสนามกีฬาที่ตรงกัน`);
         subItems.push({
           subjectId: sid,
           teachers: tList,
-          sportRoom: c.c11_sportDualRoom ? spRoom : null,
+          sportRoom: c.r8_sportDualRoom ? spRoom : null,
         });
         for (const t of tList) allTeachers.push(t);
-        if (c.c11_sportDualRoom && spRoom) allSportRooms.push(spRoom);
+        if (c.r8_sportDualRoom && spRoom) allSportRooms.push(spRoom);
       }
 
       const theoryPool = ctx.theoryRoomsForElective(es.year);
@@ -90,11 +89,11 @@ function buildBlocks(ctx) {
       continue;
     }
 
-    // Independent elective subject (C12 OFF)
-    if (sub.special_mode === 'elective' && !c.c12_electiveSync) {
+    // Independent elective subject (Rule 9 OFF)
+    if (sub.special_mode === 'elective' && !c.r9_electiveSync) {
       const tList = ctx.teachersBySubject.get(sub.subject_id) || [];
       if (tList.length === 0) problems.push(`${sub.subject_id} (${reg.group_id}) ไม่มีครูที่สอนได้`);
-      const spRoom = c.c11_sportDualRoom ? ctx.sportRoomFor(sub.subject_id) : null;
+      const spRoom = c.r8_sportDualRoom ? ctx.sportRoomFor(sub.subject_id) : null;
       const rooms = ctx.roomsFor(sub.subject_id, null);
       if (rooms.length === 0) problems.push(`${sub.subject_id} (${reg.group_id}) ไม่มีห้องที่ใช้ได้ตามเงื่อนไข`);
 
@@ -120,13 +119,14 @@ function buildBlocks(ctx) {
       continue;
     }
 
-    // Combined-year course (C13 ON)
-    if (sub.special_mode === 'combined_year' && c.c13_combinedYear) {
+    // Combined-year course (data rule: 4 ชม. เรียนรวมทั้งชั้นปี)
+    if (sub.special_mode === 'combined_year') {
       if (combinedHandled.has(sub.subject_id)) continue;
       combinedHandled.add(sub.subject_id);
 
       const yGroups = ctx.activeGroups.filter((g) => g.year === sub.year).map((g) => g.group_id);
-      const tList = ctx.teachersBySubject.get(sub.subject_id) || [];
+      const rawTeachers = ctx.teachersBySubject.get(sub.subject_id) || [];
+      const tList = c.r7_coTeach ? rawTeachers : rawTeachers.slice(0, 1);
       const rooms = ctx.roomsFor(sub.subject_id, null);
       if (tList.length === 0) problems.push(`${sub.subject_id} (${yGroups.join('+')}) ไม่มีครูที่สอนได้`);
       if (rooms.length === 0) problems.push(`${sub.subject_id} (${yGroups.join('+')}) ไม่มีห้องที่ใช้ได้ตามเงื่อนไข`);
@@ -152,10 +152,11 @@ function buildBlocks(ctx) {
       continue;
     }
 
-    // Normal course (or combined_year when C13 OFF)
-    const tList = ctx.teachersBySubject.get(sub.subject_id) || [];
+    // Normal course
+    const rawTeachers = ctx.teachersBySubject.get(sub.subject_id) || [];
+    const tList = c.r7_coTeach ? rawTeachers : rawTeachers.slice(0, 1);
     const rooms = ctx.roomsFor(sub.subject_id, reg.group_id);
-    const needsSport = c.c11_sportDualRoom && sub.group_type === 'ทักษะและการสอนกีฬา';
+    const needsSport = c.r8_sportDualRoom && sub.group_type === 'ทักษะและการสอนกีฬา';
     const sportRoom = needsSport ? ctx.sportRoomFor(sub.subject_id) : null;
     if (tList.length === 0) problems.push(`${sub.subject_id} (${reg.group_id}) ไม่มีครูที่สอนได้`);
     if (rooms.length === 0) problems.push(`${sub.subject_id} (${reg.group_id}) ไม่มีห้องที่ใช้ได้ตามเงื่อนไข`);
@@ -578,33 +579,31 @@ class Board {
       }
     }
 
-    // Add fixed Wed P8 (ADVISOR) and Wed P9 (ACTIVITY) rows when C9 is enabled
-    if (ctx.constraints.c9_wedFixed) {
-      const wf = ctx.params.wedFixed || { day: 'Wed', advisorPeriod: 8, activityPeriod: 9 };
-      const wedIdx = ctx.dayToIdx.get(wf.day);
-      if (wedIdx != null) {
-        const advSlot = ctx.slotByDayPeriod.get(`${wedIdx}|${wf.advisorPeriod}`);
-        const actSlot = ctx.slotByDayPeriod.get(`${wedIdx}|${wf.activityPeriod}`);
-        for (const g of ctx.activeGroups) {
-          const room = g.home_room || 'R321';
-          if (advSlot) {
-            rows.push({
-              group_id: g.group_id,
-              timeslot_id: advSlot,
-              subject_id: 'ADVISOR',
-              teacher_id: '-',
-              room_id: room,
-            });
-          }
-          if (actSlot) {
-            rows.push({
-              group_id: g.group_id,
-              timeslot_id: actSlot,
-              subject_id: 'ACTIVITY',
-              teacher_id: '-',
-              room_id: room,
-            });
-          }
+    // Add fixed Wed P8 (ADVISOR) and Wed P9 (ACTIVITY) rows (Basic rule 2, always on)
+    const wf = ctx.params.wedFixed || { day: 'Wed', advisorPeriod: 8, activityPeriod: 9 };
+    const wedIdx = ctx.dayToIdx.get(wf.day);
+    if (wedIdx != null) {
+      const advSlot = ctx.slotByDayPeriod.get(`${wedIdx}|${wf.advisorPeriod}`);
+      const actSlot = ctx.slotByDayPeriod.get(`${wedIdx}|${wf.activityPeriod}`);
+      for (const g of ctx.activeGroups) {
+        const room = g.home_room || 'R321';
+        if (advSlot) {
+          rows.push({
+            group_id: g.group_id,
+            timeslot_id: advSlot,
+            subject_id: 'ADVISOR',
+            teacher_id: '-',
+            room_id: room,
+          });
+        }
+        if (actSlot) {
+          rows.push({
+            group_id: g.group_id,
+            timeslot_id: actSlot,
+            subject_id: 'ACTIVITY',
+            teacher_id: '-',
+            room_id: room,
+          });
         }
       }
     }

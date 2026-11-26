@@ -10,31 +10,31 @@ const base = loadConfig();
 
 const runAll = process.argv.includes('--all');
 const allOn = {
-  c8_execMeeting: true,
-  c9_wedFixed: true,
-  c10_roomCategory: true,
-  c11_sportDualRoom: true,
-  c12_electiveSync: true,
-  c13_combinedYear: true,
+  r5_theoryRoom: true,
+  r6_computerLab: true,
+  r7_coTeach: true,
+  r8_sportDualRoom: true,
+  r9_electiveSync: true,
+  r10_year4NoSchedule: true,
 };
 const allOff = {
-  c8_execMeeting: false,
-  c9_wedFixed: false,
-  c10_roomCategory: false,
-  c11_sportDualRoom: false,
-  c12_electiveSync: false,
-  c13_combinedYear: false,
+  r5_theoryRoom: false,
+  r6_computerLab: false,
+  r7_coTeach: false,
+  r8_sportDualRoom: false,
+  r9_electiveSync: false,
+  r10_year4NoSchedule: false,
 };
 
 const combos = runAll
   ? [
-      { name: 'all-specials-on', constraints: allOn },
+      { name: 'all-rules-on', constraints: allOn },
       { name: 'basic-only', constraints: allOff },
-      { name: 'no-exec-meeting', constraints: { ...allOn, c8_execMeeting: false } },
-      { name: 'no-wed-fixed', constraints: { ...allOn, c9_wedFixed: false } },
-      { name: 'no-room-category', constraints: { ...allOn, c10_roomCategory: false } },
-      { name: 'no-sport-dual-room', constraints: { ...allOn, c11_sportDualRoom: false } },
-      { name: 'no-elective-sync', constraints: { ...allOn, c12_electiveSync: false } },
+      { name: 'no-r5-theory', constraints: { ...allOn, r5_theoryRoom: false } },
+      { name: 'no-r6-comp', constraints: { ...allOn, r6_computerLab: false } },
+      { name: 'no-r7-coteach', constraints: { ...allOn, r7_coTeach: false } },
+      { name: 'no-r8-dualroom', constraints: { ...allOn, r8_sportDualRoom: false } },
+      { name: 'no-r9-elective', constraints: { ...allOn, r9_electiveSync: false } },
     ]
   : [{ name: 'default', constraints: base.constraints }];
 
@@ -60,7 +60,6 @@ for (const combo of combos) {
   );
 }
 
-// Determinism check: seed 42 twice must match byte-for-byte, seed 99 must differ
 const cfg42 = mergeConfig({ ...base, constraints: allOn, params: { ...base.params, seed: 42 } });
 const cfg99 = mergeConfig({ ...base, constraints: allOn, params: { ...base.params, seed: 99 } });
 const r1 = solve(data, cfg42);

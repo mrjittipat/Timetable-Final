@@ -7,12 +7,12 @@ import { validate } from '../validator.js';
 import { splitIds } from '../context.js';
 
 const SPECIAL_KEY_BY_NO = {
-  8: 'c8_execMeeting',
-  9: 'c9_wedFixed',
-  10: 'c10_roomCategory',
-  11: 'c11_sportDualRoom',
-  12: 'c12_electiveSync',
-  13: 'c13_combinedYear',
+  5: 'r5_theoryRoom',
+  6: 'r6_computerLab',
+  7: 'r7_coTeach',
+  8: 'r8_sportDualRoom',
+  9: 'r9_electiveSync',
+  10: 'r10_year4NoSchedule',
 };
 
 function compressPeriods(nums) {

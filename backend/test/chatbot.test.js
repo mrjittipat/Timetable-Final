@@ -52,7 +52,7 @@ const cases = [
   ['การใช้ห้อง', 'room_usage'],
   ['ข้อสังเกตจากข้อมูล', 'warnings'],
   ['สรุปภาพรวม', 'summary'],
-  ['จัดตารางใหม่ เปิด 8 ปิด 12', 'solve', (e) => e.on.includes(8) && e.off.includes(12)],
+  ['จัดตารางใหม่ เปิด 5 ปิด 9', 'solve', (e) => e.on.includes(5) && e.off.includes(9)],
   ['จัดตาราง seed 123', 'solve', (e) => e.seed === 123],
   ['สุ่ม seed ใหม่', 'solve', (e) => e.randomSeed === true],
   [`ย้าย ${s0.subject_id} ของ ${g0} ไปพุธ คาบ 1`, 'move', (e) => e.target?.day === 'Wed' && e.target?.period === 1],

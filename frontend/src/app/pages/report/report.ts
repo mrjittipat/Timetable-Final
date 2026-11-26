@@ -12,7 +12,7 @@ import { AppState } from '../../core/state';
         <div>
           <div class="eyebrow">Validator อิสระจาก solver</div>
           <h1>ผลตรวจเงื่อนไข</h1>
-          <p>ตรวจสอบตารางเรียนล่าสุดครบทั้ง Integrity (I0), เงื่อนไขพื้นฐาน (C1–C7) และเงื่อนไขพิเศษ (C8–C13)</p>
+          <p>ตรวจสอบตารางเรียนล่าสุดครบทั้งโครงสร้าง (I0), เงื่อนไขพื้นฐาน (ข้อ 1–4) และเงื่อนไขการจัดรายวิชา และห้องเรียน (ข้อ 5–10)</p>
         </div>
         <div class="segmented">
           <button type="button" [class.active]="filter() === 'all'" (click)="filter.set('all')">ทั้งหมด</button>
@@ -94,9 +94,9 @@ export class ReportPage {
     const list = this.val()?.checks || [];
     const filtered = this.filter() === 'failed' ? list.filter((c) => c.enabled && !c.passed) : list;
     return [
-      { type: 'integrity', title: 'โครงสร้างข้อมูล (Integrity)', items: filtered.filter((c) => c.type === 'integrity') },
-      { type: 'basic', title: 'เงื่อนไขพื้นฐาน (C1–C7)', items: filtered.filter((c) => c.type === 'basic') },
-      { type: 'special', title: 'เงื่อนไขพิเศษ (C8–C13)', items: filtered.filter((c) => c.type === 'special') },
+      { type: 'integrity', title: 'โครงสร้างข้อมูลและไม่ชนกัน (I0)', items: filtered.filter((c) => c.type === 'integrity') },
+      { type: 'basic', title: 'เงื่อนไขพื้นฐาน (ข้อ 1–4)', items: filtered.filter((c) => c.type === 'basic') },
+      { type: 'special', title: 'เงื่อนไขการจัดรายวิชา และห้องเรียน (ข้อ 5–10)', items: filtered.filter((c) => c.type === 'special') },
     ].filter((g) => g.items.length > 0);
   });
 }

@@ -9,6 +9,15 @@ export const ELECTIVE_SET_META = {
   Y3_EL2: { id: 'Y3_EL2', year: 3, name: 'กลวิธีการฝึกกีฬา', label: 'ปี 3 (วิชาเลือก: กลวิธีการฝึก)' },
 };
 
+export const THEORY_GROUP_TYPES = new Set([
+  'วิชาภาษา',
+  'วิชาสังคมศาสตร์และมนุษยศาสตร์',
+  'วิชาชีพครู',
+  'วิชาบังคับ',
+  'คณิตศาสตร์',
+  'วิทยาศาสตร์',
+]);
+
 export function splitIds(value) {
   return String(value || '')
     .split('+')
@@ -41,12 +50,13 @@ export function buildContext(data, config) {
 
   const periods = [...periodSet].sort((a, b) => a - b);
 
+  // Basic rule 2 (always on): Wed P8 = Advisor, Wed P9 = Activity
   const isWedFixedSlot = (slot) => {
-    if (!constraints.c9_wedFixed) return false;
     const wf = params.wedFixed || { day: 'Wed', advisorPeriod: 8, activityPeriod: 9 };
     return slot.day === wf.day && (slot.period === wf.advisorPeriod || slot.period === wf.activityPeriod);
   };
 
+  // Basic rule 1 (always on): period 5 = lunch break
   const daySlots = days.map((_, dayIdx) =>
     [...slotsById.values()]
       .filter((s) => s.dayIdx === dayIdx && s.period !== params.breakPeriod && !isWedFixedSlot(s))
@@ -164,6 +174,9 @@ export function buildContext(data, config) {
   const year4FreeRoomIds = [...groups.values()]
     .filter((g) => g.year === 4 && g.home_room && rooms.has(g.home_room))
     .map((g) => g.home_room);
+  const nonSportRoomIds = [...rooms.values()]
+    .filter((r) => r.room_type !== 'Sport')
+    .map((r) => r.room_id);
 
   const theoryRoomsForElective = (year) => {
     const yearHomes = activeGroups
@@ -180,7 +193,7 @@ export function buildContext(data, config) {
     let neededSeats = 0;
     if (sub.special_mode === 'elective') {
       neededSeats = 20;
-    } else if (sub.special_mode === 'combined_year' && constraints.c13_combinedYear) {
+    } else if (sub.special_mode === 'combined_year') {
       neededSeats = activeGroups
         .filter((ag) => ag.year === sub.year)
         .reduce((sum, ag) => sum + ag.student_count, 0);
@@ -193,40 +206,49 @@ export function buildContext(data, config) {
       return rm && (rm.capacity <= 0 || rm.capacity >= neededSeats);
     };
 
-    if (!constraints.c10_roomCategory) {
-      const needsTheory =
-        constraints.c11_sportDualRoom &&
-        (sub.group_type === 'ทักษะและการสอนกีฬา' || sub.special_mode === 'elective');
-      return [...rooms.values()]
-        .filter((r) => (needsTheory ? (r.room_type === 'Theory' || r.room_type === 'LectureHall') : r.room_type !== 'Sport'))
-        .map((r) => r.room_id)
-        .filter(fitsCap);
-    }
-
+    // Rule 6: นวัตกรรมและเทคโนโลยี -> ComputerLab
     if (sub.group_type === 'นวัตกรรมและเทคโนโลยี') {
-      return computerLabIds.filter(fitsCap);
+      return (constraints.r6_computerLab ? computerLabIds : nonSportRoomIds).filter(fitsCap);
     }
 
-    if (sub.special_mode === 'combined_year' && constraints.c13_combinedYear) {
+    // Combined-year courses (75-120 students) always need LectureHall capacity
+    if (sub.special_mode === 'combined_year') {
       return lectureHallIds.filter(fitsCap);
     }
 
+    // Electives
     if (sub.special_mode === 'elective') {
       return theoryRoomsForElective(sub.year).filter(fitsCap);
     }
 
-    if (groupId && groups.has(groupId)) {
-      const hr = groups.get(groupId).home_room;
-      if (hr && rooms.has(hr) && fitsCap(hr)) return [hr];
+    // Sport skills
+    if (sub.group_type === 'ทักษะและการสอนกีฬา') {
+      if (groupId && groups.has(groupId)) {
+        const hr = groups.get(groupId).home_room;
+        if (hr && rooms.has(hr) && fitsCap(hr)) return [hr];
+      }
+      return allTheoryRoomIds.filter(fitsCap);
+    }
+
+    // Rule 5: วิชาภาษา/สังคม/วิชาชีพครู/บังคับ/คณิต/วิทย์ -> Theory (homeroom)
+    if (THEORY_GROUP_TYPES.has(sub.group_type)) {
+      if (!constraints.r5_theoryRoom) {
+        return nonSportRoomIds.filter(fitsCap);
+      }
+      if (groupId && groups.has(groupId)) {
+        const hr = groups.get(groupId).home_room;
+        if (hr && rooms.has(hr) && fitsCap(hr)) return [hr];
+      }
+      return allTheoryRoomIds.filter(fitsCap);
     }
 
     return allTheoryRoomIds.filter(fitsCap);
   };
 
+  // Basic rule 3 (always on): 7 executives cannot teach Tue P1-4
   const isExecTeacher = (teacherId) => teachers.get(teacherId)?.role === 'Leader';
 
   const isExecBlockedSlot = (slotId) => {
-    if (!constraints.c8_execMeeting) return false;
     const slot = slotsById.get(slotId);
     if (!slot) return false;
     const em = params.execMeeting || { day: 'Tue', periods: [1, 2, 3, 4] };

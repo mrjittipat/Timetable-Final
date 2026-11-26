@@ -28,7 +28,7 @@ import { IconComponent } from '../../shared/icon';
           <button class="btn" type="button" [disabled]="undoStack().length === 0" (click)="undo()">
             <app-icon name="undo" [size]="15" /> ย้อนกลับ ({{ undoStack().length }})
           </button>
-          <button class="btn" type="button" (click)="checkNow()">ตรวจเงื่อนไข (14 ข้อ)</button>
+          <button class="btn" type="button" (click)="checkNow()">ตรวจเงื่อนไข (10 ข้อ)</button>
         </div>
       </div>
 

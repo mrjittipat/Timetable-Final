@@ -45,54 +45,48 @@ function expectFail(checkId, label, mutateFn) {
   );
 }
 
-// I0: invalid room id
+// I0: unknown room id
 expectFail('I0', 'unknown room id', (rows) => {
   const r = rows.find((x) => x.subject_id !== 'ADVISOR' && x.subject_id !== 'ACTIVITY');
   r.room_id = 'INVALID_ROOM_999';
 });
 
-// C1: drop 1 period of a normal subject
-expectFail('C1', 'missing period', (rows) => {
-  const idx = rows.findIndex((x) => x.group_id === 'Y1_1' && x.subject_id !== 'ADVISOR' && x.subject_id !== 'ACTIVITY');
-  rows.splice(idx, 1);
-});
-
-// C2: move a row into break period 5
+// C1: break period 5
 const breakSlot = data.timeslot.find((s) => s.period === 5).timeslot_id;
-expectFail('C2', 'class in break period', (rows) => {
+expectFail('C1', 'class in break period 5', (rows) => {
   const r = rows.find((x) => x.group_id === 'Y1_1' && x.subject_id !== 'ADVISOR' && x.subject_id !== 'ACTIVITY');
   r.timeslot_id = breakSlot;
 });
 
-// C3: duplicate group at same slot
-expectFail('C3', 'group double-booked', (rows) => {
-  const a = rows.find((x) => x.group_id === 'Y1_1' && x.subject_id === 'มศ 041017');
-  const b = rows.find((x) => x.group_id === 'Y1_1' && x.subject_id === 'สศ 021011');
-  b.timeslot_id = a.timeslot_id;
+// C2: Wed P8 advisor missing
+expectFail('C2', 'missing Wed P8 advisor', (rows) => {
+  const idx = rows.findIndex((x) => x.subject_id === 'ADVISOR');
+  rows.splice(idx, 1);
 });
 
-// C4: teacher double-booked
-expectFail('C4', 'teacher double-booked', (rows) => {
-  const a = rows.find((x) => x.group_id === 'Y1_1' && x.subject_id === 'มศ 041017');
-  const b = rows.find((x) => x.group_id === 'Y1_2' && x.subject_id === 'มศ 041017');
-  b.timeslot_id = a.timeslot_id;
+// C3: executive teacher scheduled Tue P1
+const tueP1 = data.timeslot.find((s) => s.day === 'Tue' && s.period === 1).timeslot_id;
+expectFail('C3', 'executive in Tue P1 meeting', (rows) => {
+  const exec = data.teacher.find((t) => t.role === 'Leader');
+  const r = rows.find((x) => x.teacher_id.split('+').includes(exec.teacher_id));
+  r.timeslot_id = tueP1;
 });
 
-// C5: room double-booked
-expectFail('C5', 'room double-booked', (rows) => {
-  const a = rows.find((x) => x.group_id === 'Y1_1' && x.subject_id === 'มศ 041017');
-  const b = rows.find((x) => x.group_id === 'Y1_2' && x.timeslot_id === a.timeslot_id);
-  if (b) b.room_id = a.room_id;
-  else {
-    const c = rows.find((x) => x.group_id === 'Y1_2' && x.subject_id === 'สศ 021011');
-    c.timeslot_id = a.timeslot_id;
-    c.room_id = a.room_id;
-  }
+// C4: missing period (hours != L+P)
+expectFail('C4', 'missing period', (rows) => {
+  const idx = rows.findIndex((x) => x.group_id === 'Y1_1' && x.subject_id !== 'ADVISOR' && x.subject_id !== 'ACTIVITY');
+  rows.splice(idx, 1);
 });
 
-// C6: capacity exceeded (combined year 120 students in 40-seat room)
-expectFail('C6', 'room capacity exceeded', (rows) => {
-  const r = rows.find((x) => x.subject_id === 'กศ 071001');
+// C5: theory subject in computer lab
+expectFail('C5', 'theory subject in computer lab', (rows) => {
+  const r = rows.find((x) => x.subject_id === 'มศ 041017');
+  r.room_id = 'COMP1';
+});
+
+// C6: IT subject in theory room
+expectFail('C6', 'IT subject in wrong room type', (rows) => {
+  const r = rows.find((x) => x.subject_id === 'กศ 032010');
   r.room_id = 'R321';
 });
 
@@ -102,44 +96,23 @@ expectFail('C7', 'missing co-teacher', (rows) => {
   r.teacher_id = r.teacher_id.split('+')[0];
 });
 
-// C8: executive teacher scheduled Tue P1
-const tueP1 = data.timeslot.find((s) => s.day === 'Tue' && s.period === 1).timeslot_id;
-expectFail('C8', 'executive in Tue P1 meeting', (rows) => {
-  const exec = data.teacher.find((t) => t.role === 'Leader');
-  const r = rows.find((x) => x.teacher_id.split('+').includes(exec.teacher_id));
-  r.timeslot_id = tueP1;
-});
-
-// C9: remove Wed P8 ADVISOR
-expectFail('C9', 'missing Wed P8 advisor', (rows) => {
-  const idx = rows.findIndex((x) => x.subject_id === 'ADVISOR');
-  rows.splice(idx, 1);
-});
-
-// C10: IT subject in theory room instead of computer lab
-expectFail('C10', 'IT subject in wrong room type', (rows) => {
-  const r = rows.find((x) => x.subject_id === 'กศ 032010');
-  r.room_id = 'R321';
-});
-
-// C11: sport subject missing sport facility
-expectFail('C11', 'sport subject missing gym/field', (rows) => {
+// C8: sport subject missing sport facility
+expectFail('C8', 'sport subject missing gym/field', (rows) => {
   const r = rows.find((x) => x.subject_id === 'พล 051383');
   r.room_id = r.room_id.split('+')[0];
 });
 
-// C12: elective subject desynchronized
+// C9: elective subject desync
 const monP1 = data.timeslot.find((s) => s.day === 'Mon' && s.period === 1).timeslot_id;
 const friP9 = data.timeslot.find((s) => s.day === 'Fri' && s.period === 9).timeslot_id;
-expectFail('C12', 'elective subject desync', (rows) => {
+expectFail('C9', 'elective subject desync', (rows) => {
   const r = rows.find((x) => x.group_id === 'Y2_EL');
   r.timeslot_id = r.timeslot_id === monP1 ? friP9 : monP1;
 });
 
-// C13: combined-year group desync
-expectFail('C13', 'combined-year group desync', (rows) => {
-  const r = rows.find((x) => x.subject_id === 'กศ 071001' && x.group_id === 'Y1_2');
-  r.timeslot_id = r.timeslot_id === monP1 ? friP9 : monP1;
+// C10: Year 4 scheduled row
+expectFail('C10', 'Year 4 has scheduled class', (rows) => {
+  rows.push({ group_id: 'Y4_1', timeslot_id: monP1, subject_id: 'กศ 021037', teacher_id: 'T11', room_id: 'R336' });
 });
 
 if (failures > 0) process.exit(1);

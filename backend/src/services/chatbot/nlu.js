@@ -76,10 +76,10 @@ export function extract(text, ctx) {
   const numMatches = [...work.matchAll(/(?:ข้อ|เงื่อนไข(?:ที่|ข้อ)?|\bc)\s*(\d{1,2})\b/g)];
   for (const m of numMatches) {
     const n = Number(m[1]);
-    if (n >= 0 && n <= 13 && !numbers.includes(n)) numbers.push(n);
+    if (n >= 0 && n <= 10 && !numbers.includes(n)) numbers.push(n);
   }
   const toggleMatches = [...work.matchAll(/(เปิด|ปิด)\s*(?:เงื่อนไข|ข้อ)?\s*(ทั้งหมด|(?:\d{1,2}(?:\s*(?:,|และ|\s)\s*\d{1,2})*))/g)];
-  const specialNos = [8, 9, 10, 11, 12, 13];
+  const specialNos = [5, 6, 7, 8, 9, 10];
   for (const m of toggleMatches) {
     const arr = m[1] === 'เปิด' ? on : off;
     if (m[2] === 'ทั้งหมด') {

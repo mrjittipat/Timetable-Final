@@ -3,12 +3,12 @@ import { solve, mulberry32 } from './solver.js';
 import { mergeConfig } from './config.js';
 
 const SPECIAL_LIST = [
-  { key: 'c8_execMeeting', no: 8, label: 'ประชุมผู้บริหาร (อังคาร 1–4)' },
-  { key: 'c9_wedFixed', no: 9, label: 'พบที่ปรึกษา/กิจกรรม (พุธ 8–9)' },
-  { key: 'c10_roomCategory', no: 10, label: 'ประเภทห้องและห้องประจำ' },
-  { key: 'c11_sportDualRoom', no: 11, label: 'วิชากีฬาใช้ 2 สถานที่พร้อมกัน' },
-  { key: 'c12_electiveSync', no: 12, label: 'วิชาเลือกกีฬาจัดพร้อมกันทั้งชุด' },
-  { key: 'c13_combinedYear', no: 13, label: 'วิชาปฏิบัติการเรียนรวมทั้งชั้นปี' },
+  { key: 'r5_theoryRoom', no: 5, label: 'วิชาทฤษฎีเรียนห้องทฤษฎี' },
+  { key: 'r6_computerLab', no: 6, label: 'วิชานวัตกรรมและเทคโนโลยีเรียนห้องคอม' },
+  { key: 'r7_coTeach', no: 7, label: 'วิชาครู 2 คนสอนพร้อมกัน' },
+  { key: 'r8_sportDualRoom', no: 8, label: 'วิชากีฬาจองห้องทฤษฎีกับสนามพร้อมกัน' },
+  { key: 'r9_electiveSync', no: 9, label: 'วิชาเลือกกีฬาเรียนเวลาเดียวกัน' },
+  { key: 'r10_year4NoSchedule', no: 10, label: 'ปี 4 ไม่ต้องจัดตาราง' },
 ];
 
 function capacityChecks(ctx) {
@@ -45,7 +45,7 @@ function capacityChecks(ctx) {
   for (const r of ctx.registrations) {
     const sub = ctx.subjects.get(r.subject_id);
     if (!sub || sub.special_mode === 'practicum_y4') continue;
-    if (sub.special_mode === 'combined_year' && ctx.constraints.c13_combinedYear) {
+    if (sub.special_mode === 'combined_year') {
       if (seenCombined.has(sub.subject_id)) continue;
       seenCombined.add(sub.subject_id);
     }
@@ -56,7 +56,7 @@ function capacityChecks(ctx) {
   }
   for (const [tid, load] of teacherLoad.entries()) {
     const t = ctx.teachers.get(tid);
-    const maxSlots = ctx.isExecTeacher(tid) && ctx.constraints.c8_execMeeting ? usablePerWeek - 4 : usablePerWeek;
+    const maxSlots = ctx.isExecTeacher(tid) ? usablePerWeek - 4 : usablePerWeek;
     if (load > maxSlots) {
       findings.push({
         level: 'error',
@@ -67,7 +67,7 @@ function capacityChecks(ctx) {
   }
 
   // Check elective theory room capacity
-  if (ctx.constraints.c12_electiveSync) {
+  if (ctx.constraints.r9_electiveSync) {
     for (const es of ctx.electiveSets.values()) {
       const pool = ctx.theoryRoomsForElective(es.year);
       if (pool.length < es.subjects.length) {
