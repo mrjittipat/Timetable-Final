@@ -740,8 +740,8 @@ router.get('/timetable/grid', (req, res) => {
   const list = entitiesFor(view, ctx);
   const entity = list.find((e) => e.id === req.query.id) || list[0] || null;
   const rows = store.getTimetable()?.rows || [];
-  if (!entity) return res.json({ entity: null, days: [], periods: [], cells: [], total: 0 });
-  res.json({ entity, ...buildGrid(view, entity.id, rows, ctx) });
+  if (!entity) return res.json({ entity: null, days: [], periods: [], cells: [], total: 0, subjects: { list: [], total: { n: 0, t: 0, p: 0, s: 0, h: 0 } } });
+  res.json({ entity, ...buildGrid(view, entity.id, rows, ctx), subjects: subjectSummary(view, entity.id, rows, ctx) });
 });
 
 router.get('/timetable/grids', (req, res) => {

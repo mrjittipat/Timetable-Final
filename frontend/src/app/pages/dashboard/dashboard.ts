@@ -531,7 +531,7 @@ export class DashboardPage implements OnInit {
         this.myInfo.set(info);
         this.myRequests.set(reqs.requests || []);
         const tid = this.auth.user()?.teacher_id;
-        if (tid && this.state.hasTimetable()) {
+        if (tid) {
           this.myGrid.set(await this.api.getGrid('teacher', tid));
         } else {
           this.myGrid.set(null);
