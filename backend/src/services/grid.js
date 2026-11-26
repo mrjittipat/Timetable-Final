@@ -123,6 +123,23 @@ function rowsForEntity(view, id, rows, ctx) {
         if (!cohortSeen.has(key)) {
           cohortSeen.add(key);
           const es = ctx.electiveSets.get(r.group_id);
+          const cohortRows = rows.filter((x) => x.group_id === r.group_id && x.timeslot_id === r.timeslot_id);
+          let hasTheory = false;
+          let hasSport = false;
+          for (const cr of cohortRows) {
+            for (const rid of splitIds(cr.room_id)) {
+              const rt = ctx.rooms.get(rid)?.room_type;
+              if (rt === 'Theory') hasTheory = true;
+              else if (rt === 'Sport') hasSport = true;
+            }
+          }
+          const roomLabel = hasTheory && hasSport
+            ? 'ห้องทฤษฎี + สนามกีฬา'
+            : hasTheory
+              ? 'ห้องทฤษฎี'
+              : hasSport
+                ? 'สนามกีฬา'
+                : '-';
           out.push({
             group_id: id,
             timeslot_id: r.timeslot_id,
@@ -130,6 +147,7 @@ function rowsForEntity(view, id, rows, ctx) {
             teacher_id: '-',
             room_id: '-',
             _electiveDisplay: `เลือก 1 จาก ${es.subjects.length} วิชา`,
+            _electiveRoomLabel: roomLabel,
           });
         }
       }
@@ -195,7 +213,7 @@ export function buildGrid(view, id, rows, ctx) {
         teacher_id: first.teacher_id,
         teacher: first._electiveDisplay || (hasTeacher ? teacherNames(first.teacher_id, ctx) : ''),
         room: first.room_id,
-        room_name: first._electiveDisplay ? 'ห้องทฤษฎี + สนามกีฬา' : roomNames(first.room_id, ctx),
+        room_name: first._electiveRoomLabel || (first._electiveDisplay ? 'ห้องทฤษฎี + สนามกีฬา' : roomNames(first.room_id, ctx)),
         groups,
         group_labels: groups.map((g) => groupLabel(g, ctx)),
         clash,

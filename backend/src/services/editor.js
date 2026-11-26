@@ -88,11 +88,72 @@ export function moveSpan(rows, ctx, { view, id, fromDay, fromPeriod, length = 1,
   });
 }
 
-export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id, group_ids, electiveEdits }) {
+export function editSpan(rows, ctx, { view, id, day, period, length = 1, teacher_id, room_id, group_id, group_ids, electiveEdits, electiveRoomMode }) {
   const len = Math.max(1, Number(length) || 1);
   const slots = resolveWindow(ctx, day, Number(period), len);
   if (!slots) throw httpError(400, 'ช่วงคาบไม่ถูกต้อง');
   const slotSet = new Set(slots);
+
+  // Simple toggle for elective cohort room types: Theory and/or Sport
+  if (electiveRoomMode && electiveRoomMode.cohortId) {
+    const { cohortId, theory = true, sport = true } = electiveRoomMode;
+    if (!theory && !sport) throw httpError(400, 'ต้องมีอย่างน้อยห้องทฤษฎีหรือสนามกีฬา 1 ประเภท');
+
+    // Collect already-occupied theory rooms at these slots (excluding this cohort)
+    const busyRooms = new Set();
+    for (const r of rows) {
+      if (!slotSet.has(r.timeslot_id)) continue;
+      if (r.group_id === cohortId) continue;
+      for (const rid of splitIds(r.room_id)) busyRooms.add(rid);
+    }
+    const allTheoryRooms = [...ctx.rooms.values()]
+      .filter((rm) => rm.room_type === 'Theory')
+      .map((rm) => rm.room_id);
+    const assignedTheoryBySub = new Map();
+    const usedTheoryInCohort = new Set();
+
+    // Preserve any existing theory rooms already assigned to subjects in this cohort
+    for (const r of rows) {
+      if (r.group_id !== cohortId || !slotSet.has(r.timeslot_id)) continue;
+      const existingTheory = splitIds(r.room_id).find((rid) => ctx.rooms.get(rid)?.room_type === 'Theory');
+      if (existingTheory && !assignedTheoryBySub.has(r.subject_id)) {
+        assignedTheoryBySub.set(r.subject_id, existingTheory);
+        usedTheoryInCohort.add(existingTheory);
+      }
+    }
+
+    const pickTheoryFor = (subId) => {
+      if (assignedTheoryBySub.has(subId)) return assignedTheoryBySub.get(subId);
+      const free = allTheoryRooms.find((rid) => !busyRooms.has(rid) && !usedTheoryInCohort.has(rid))
+        || allTheoryRooms.find((rid) => !usedTheoryInCohort.has(rid))
+        || allTheoryRooms[0];
+      if (free) {
+        assignedTheoryBySub.set(subId, free);
+        usedTheoryInCohort.add(free);
+      }
+      return free || '';
+    };
+
+    return rows.map((r) => {
+      if (r.group_id !== cohortId || !slotSet.has(r.timeslot_id)) return { ...r };
+      const curIds = splitIds(r.room_id);
+      const curTheory = curIds.find((rid) => ctx.rooms.get(rid)?.room_type === 'Theory');
+      const curSport = curIds.find((rid) => ctx.rooms.get(rid)?.room_type === 'Sport');
+      const nextIds = [];
+      if (theory) {
+        const th = curTheory || pickTheoryFor(r.subject_id);
+        if (th) nextIds.push(th);
+      }
+      if (sport) {
+        const sp = curSport || ctx.sportRoomFor(r.subject_id) || '';
+        if (sp) nextIds.push(sp);
+      }
+      return {
+        ...r,
+        room_id: nextIds.length > 0 ? nextIds.join('+') : r.room_id,
+      };
+    });
+  }
 
   // Batch edit for elective cohort subjects (Y2_EL, Y3_EL1, Y3_EL2)
   if (Array.isArray(electiveEdits) && electiveEdits.length > 0) {

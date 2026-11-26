@@ -346,35 +346,37 @@ const PERIODS = [
             <div><strong>เวลา:</strong> วัน{{ detail.dayLabel }} คาบ {{ detail.span.start }}@if (detail.span.span > 1) { –{{ detail.span.start + detail.span.span - 1 }} } ({{ detail.span.span }} คาบ)</div>
             <div><strong>อาจารย์ผู้สอน:</strong> {{ detail.span.teacher_name }}</div>
 
-            @if (auth.isAdmin() && detail.span.isElectiveCohort && electiveEditItems().length > 0) {
+            @if (auth.isAdmin() && detail.span.isElectiveCohort) {
               <div class="edit-box">
-                <div style="font-weight: 600; margin-bottom: 8px">แก้ไขห้อง/สนามของรายวิชาทางเลือกในชุดนี้ ({{ electiveEditItems().length }} วิชา)</div>
-                <div style="display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; padding-right: 4px">
-                  @for (el of electiveEditItems(); track el.subject_id) {
-                    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px">
-                      <div style="font-weight: 600; font-size: 12.5px; margin-bottom: 6px">{{ el.subject_id }} {{ el.subject_name }}</div>
-                      <div class="grid-2">
-                        <div class="field">
-                          <label>ห้องหลัก</label>
-                          <select class="input" [(ngModel)]="el.room1">
-                            @for (r of allRooms(); track r['room_id']) {
-                              <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
-                            }
-                          </select>
-                        </div>
-                        <div class="field">
-                          <label>สนาม / ห้องเสริม</label>
-                          <select class="input" [(ngModel)]="el.room2">
-                            <option value="">— ไม่มี —</option>
-                            @for (r of allRooms(); track r['room_id']) {
-                              <option [value]="r['room_id']">{{ r['room_name'] }} ({{ r['room_id'] }})</option>
-                            }
-                          </select>
-                        </div>
-                      </div>
-                    </div>
+                <div style="font-weight: 600; margin-bottom: 8px">ห้อง / สนามของวิชาทางเลือก</div>
+                <div class="chip-list">
+                  @if (elHasTheory()) {
+                    <span class="grp-chip">
+                      ห้องทฤษฎี
+                      <button type="button" class="chip-x" title="ลบห้องทฤษฎีออก"
+                              [disabled]="!elHasSport()"
+                              (click)="elHasTheory.set(false)">×</button>
+                    </span>
+                  }
+                  @if (elHasSport()) {
+                    <span class="grp-chip">
+                      สนามกีฬา
+                      <button type="button" class="chip-x" title="ลบสนามกีฬาออก"
+                              [disabled]="!elHasTheory()"
+                              (click)="elHasSport.set(false)">×</button>
+                    </span>
                   }
                 </div>
+                @if (!elHasTheory() || !elHasSport()) {
+                  <div class="row" style="margin-top: 8px; gap: 6px">
+                    @if (!elHasTheory()) {
+                      <button class="btn sm" type="button" (click)="elHasTheory.set(true)">+ เพิ่มห้องทฤษฎี</button>
+                    }
+                    @if (!elHasSport()) {
+                      <button class="btn sm" type="button" (click)="elHasSport.set(true)">+ เพิ่มสนามกีฬา</button>
+                    }
+                  </div>
+                }
               </div>
             } @else if (auth.isAdmin() && !detail.span.isElectiveCohort) {
               <div class="edit-box">
@@ -429,9 +431,9 @@ const PERIODS = [
             }
           </div>
           <div class="dialog-foot">
-            @if (auth.isAdmin() && detail.span.isElectiveCohort && electiveEditItems().length > 0) {
+            @if (auth.isAdmin() && detail.span.isElectiveCohort) {
               <button class="btn" type="button" (click)="activeSpan.set(null)">ปิด</button>
-              <button class="btn primary" type="button" (click)="saveElectiveEdit()">บันทึกการแก้ไขชุดวิชาทางเลือก</button>
+              <button class="btn primary" type="button" (click)="saveElectiveEdit()">บันทึกการแก้ไข</button>
             } @else if (auth.isAdmin() && !detail.span.isElectiveCohort) {
               <button class="btn danger sm" type="button" (click)="removeSpan(detail.day, detail.span); activeSpan.set(null)">ลบคาบนี้</button>
               <span class="spacer"></span>
@@ -563,7 +565,8 @@ export class ManualPage implements OnInit {
   editRoom2 = '';
   editGroupIds = signal<string[]>([]);
   addGroupPick = '';
-  electiveEditItems = signal<{ subject_id: string; subject_name: string; room1: string; room2: string }[]>([]);
+  elHasTheory = signal(true);
+  elHasSport = signal(true);
 
   availableGroupsToAdd = computed(() => {
     const cur = new Set(this.editGroupIds());
@@ -783,6 +786,17 @@ export class ManualPage implements OnInit {
           room_name: this.roomLabel(r.room_id),
         });
       } else if (this.cohortBelongsToGroup(r.group_id, gid) && !byPeriod.has(info.period)) {
+        const cohortRows = this.draftRows().filter((x) => x.group_id === r.group_id && x.timeslot_id === r.timeslot_id);
+        let hasTh = false;
+        let hasSp = false;
+        for (const cr of cohortRows) {
+          for (const rid of String(cr.room_id || '').split('+').map((s) => s.trim()).filter(Boolean)) {
+            const rt = this.roomMap().get(rid)?.['room_type'];
+            if (rt === 'Theory') hasTh = true;
+            else if (rt === 'Sport') hasSp = true;
+          }
+        }
+        const rLabel = hasTh && hasSp ? 'ห้องทฤษฎี + สนามกีฬา' : hasTh ? 'ห้องทฤษฎี' : hasSp ? 'สนามกีฬา' : '-';
         byPeriod.set(info.period, {
           start: info.period,
           span: 1,
@@ -792,7 +806,7 @@ export class ManualPage implements OnInit {
           teacher_id: '-',
           teacher_name: 'วิชาเลือกทั้งชั้นปี',
           room_id: '-',
-          room_name: 'ห้องทฤษฎี + สนามกีฬา',
+          room_name: rLabel,
           isElectiveCohort: true,
         });
       }
@@ -1008,51 +1022,80 @@ export class ManualPage implements OnInit {
         const ts = this.slotByDayPeriod().get(`${day}|${span.start + k}`);
         if (ts) slotSet.add(ts);
       }
-      const seen = new Set<string>();
-      const out: { subject_id: string; subject_name: string; room1: string; room2: string }[] = [];
+      let hasTh = false;
+      let hasSp = false;
       for (const r of this.draftRows()) {
-        if (r.group_id !== span.subject_id || !slotSet.has(r.timeslot_id) || seen.has(r.subject_id)) continue;
-        seen.add(r.subject_id);
-        const rp = String(r.room_id || '').split('+').map((s) => s.trim()).filter((s) => s && s !== '-');
-        out.push({
-          subject_id: r.subject_id,
-          subject_name: this.displaySubName(r.subject_id),
-          room1: rp[0] || '',
-          room2: rp[1] || '',
-        });
+        if (r.group_id !== span.subject_id || !slotSet.has(r.timeslot_id)) continue;
+        for (const rid of String(r.room_id || '').split('+').map((s) => s.trim()).filter(Boolean)) {
+          const rt = this.roomMap().get(rid)?.['room_type'];
+          if (rt === 'Theory') hasTh = true;
+          else if (rt === 'Sport') hasSp = true;
+        }
       }
-      this.electiveEditItems.set(out);
-    } else {
-      this.electiveEditItems.set([]);
+      this.elHasTheory.set(hasTh);
+      this.elHasSport.set(hasSp);
     }
     this.activeSpan.set({ day, dayLabel, span });
   }
 
   saveElectiveEdit() {
     const d = this.activeSpan();
-    const items = this.electiveEditItems();
-    if (!d || !items.length) return;
+    if (!d || !d.span.isElectiveCohort) return;
+    const wantTh = this.elHasTheory();
+    const wantSp = this.elHasSport();
+    if (!wantTh && !wantSp) {
+      this.toasts.error('ต้องมีอย่างน้อยห้องทฤษฎีหรือสนามกีฬา 1 ประเภท');
+      return;
+    }
+    const cohortId = d.span.subject_id;
     const slotSet = new Set<string>();
     for (let k = 0; k < d.span.span; k++) {
       const ts = this.slotByDayPeriod().get(`${d.day}|${d.span.start + k}`);
       if (ts) slotSet.add(ts);
     }
-    const bySub = new Map(
-      items.map((el) => [el.subject_id, [...new Set([el.room1, el.room2].filter(Boolean))].join('+')])
-    );
+
+    const busyRooms = new Set<string>();
+    for (const r of this.draftRows()) {
+      if (!slotSet.has(r.timeslot_id) || r.group_id === cohortId) continue;
+      for (const rid of String(r.room_id || '').split('+').map((s) => s.trim()).filter(Boolean)) busyRooms.add(rid);
+    }
+    const allTheory = this.allRooms().filter((rm) => rm['room_type'] === 'Theory').map((rm) => rm['room_id']);
+    const allSport = this.allRooms().filter((rm) => rm['room_type'] === 'Sport');
+    const assignedTh = new Map<string, string>();
+    const usedTh = new Set<string>();
+    for (const r of this.draftRows()) {
+      if (r.group_id !== cohortId || !slotSet.has(r.timeslot_id)) continue;
+      const th = String(r.room_id || '').split('+').map((s) => s.trim()).find((rid) => this.roomMap().get(rid)?.['room_type'] === 'Theory');
+      if (th && !assignedTh.has(r.subject_id)) { assignedTh.set(r.subject_id, th); usedTh.add(th); }
+    }
+    const pickTh = (sid: string) => {
+      if (assignedTh.has(sid)) return assignedTh.get(sid)!;
+      const free = allTheory.find((rid) => !busyRooms.has(rid) && !usedTh.has(rid)) || allTheory.find((rid) => !usedTh.has(rid)) || allTheory[0] || '';
+      if (free) { assignedTh.set(sid, free); usedTh.add(free); }
+      return free;
+    };
+    const pickSp = (sid: string) => {
+      const name = String(this.subjectMap().get(sid)?.['subject_name'] || '');
+      const match = allSport.find((rm) => rm['sport_tag'] && name.includes(rm['sport_tag']));
+      return match ? match['room_id'] : (allSport[0]?.['room_id'] || '');
+    };
+
     this.pushUndo();
     const next = this.draftRows().map((r) => {
-      if (r.group_id === d.span.subject_id && slotSet.has(r.timeslot_id) && bySub.has(r.subject_id)) {
-        const nr = bySub.get(r.subject_id);
-        if (nr) return { ...r, room_id: nr };
-      }
-      return r;
+      if (r.group_id !== cohortId || !slotSet.has(r.timeslot_id)) return r;
+      const curIds = String(r.room_id || '').split('+').map((s) => s.trim()).filter(Boolean);
+      const curTh = curIds.find((rid) => this.roomMap().get(rid)?.['room_type'] === 'Theory');
+      const curSp = curIds.find((rid) => this.roomMap().get(rid)?.['room_type'] === 'Sport');
+      const outIds: string[] = [];
+      if (wantTh) { const th = curTh || pickTh(r.subject_id); if (th) outIds.push(th); }
+      if (wantSp) { const sp = curSp || pickSp(r.subject_id); if (sp) outIds.push(sp); }
+      return { ...r, room_id: outIds.length ? outIds.join('+') : r.room_id };
     });
     this.draftRows.set(next);
     this.dirty.set(true);
     this.activeSpan.set(null);
     this.validateDraft(true);
-    this.toasts.success('อัปเดตห้อง/สนามของชุดวิชาทางเลือกแล้ว (อย่าลืมกดบันทึกตารางใช้งานจริง)');
+    this.toasts.success('อัปเดตห้อง/สนามของวิชาทางเลือกแล้ว (อย่าลืมกดบันทึกตารางใช้งานจริง)');
   }
 
   saveSpanEdit() {
