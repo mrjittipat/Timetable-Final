@@ -418,6 +418,7 @@ export class ManualPage implements OnInit {
   draftRows = signal<OutputRow[]>([]);
   undoStack = signal<OutputRow[][]>([]);
   validation = signal<ValidationResult | null>(null);
+  draftSeed = signal<number | null>(null);
   dirty = signal(false);
   saving = signal(false);
 
@@ -433,8 +434,12 @@ export class ManualPage implements OnInit {
   dragMode = signal<'none' | 'palette' | 'span'>('none');
   dragSpanInfo = signal<{ day: string; span: DraftSpan } | null>(null);
 
-  currentSeed = computed(() => this.state.timetable()?.meta?.stats?.seed ?? null);
-  isSnapshot = computed(() => Boolean(this.state.timetable()?.meta?.stats?.isSnapshot));
+  currentSeed = computed(() =>
+    this.dirty() && this.draftSeed() !== null
+      ? this.draftSeed()
+      : (this.state.timetable()?.meta?.stats?.seed ?? null)
+  );
+  isSnapshot = computed(() => Boolean(this.dirty() || this.state.timetable()?.meta?.stats?.isSnapshot));
   currentGroupTitle = computed(() => this.groups().find((g) => g.id === this.groupId())?.title || this.groupId());
 
   allTeachers = computed(() => this.state.data()?.data?.['teacher'] || []);
@@ -576,6 +581,7 @@ export class ManualPage implements OnInit {
     const rows = (this.state.timetable()?.rows || []).map((r) => ({ ...r }));
     this.draftRows.set(rows);
     this.validation.set(this.state.timetable()?.validation || null);
+    this.draftSeed.set(null);
     this.dirty.set(false);
     this.undoStack.set([]);
   }
@@ -936,6 +942,7 @@ export class ManualPage implements OnInit {
     try {
       const res = await this.api.validateRows(this.draftRows());
       this.validation.set(res);
+      if (res.draftSeed != null) this.draftSeed.set(res.draftSeed);
       if (!silent) {
         if (res.passed) this.toasts.success('ผ่านครบทุกเงื่อนไข');
         else this.toasts.error(`พบเงื่อนไขไม่ผ่าน ${this.failedCount(res)} ข้อ`);
@@ -951,6 +958,7 @@ export class ManualPage implements OnInit {
       const res = await this.api.saveTimetable(this.draftRows());
       await this.state.refreshTimetable();
       this.validation.set(res.validation);
+      this.draftSeed.set(null);
       this.dirty.set(false);
       const newSeed = res.meta?.stats?.seed;
       this.toasts.success(`บันทึกตารางแล้ว (Snapshot Seed ใหม่: ${newSeed ?? '-'})`);

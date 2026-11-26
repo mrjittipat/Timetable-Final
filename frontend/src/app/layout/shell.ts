@@ -1,5 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, Subscription } from 'rxjs';
+import { Api } from '../core/api';
 import { AuthService, ROLE_TH } from '../core/auth';
 import { AppState } from '../core/state';
 import { ThemeService } from '../core/theme';
@@ -84,10 +86,26 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
             </a>
             @if (auth.isAdmin()) {
               <a routerLink="/teacher-hub" routerLinkActive="active" (click)="mobileOpen.set(false)">
-                <app-icon name="layers" [size]="18" /> @if (!collapsed()) { <span>คำขอจากครู</span> }
+                <app-icon name="layers" [size]="18" />
+                @if (!collapsed()) {
+                  <span style="flex: 1">คำขอจากครู</span>
+                  @if (badges().pendingRequests > 0) {
+                    <span class="nav-badge">{{ badges().pendingRequests }}</span>
+                  }
+                } @else if (badges().pendingRequests > 0) {
+                  <span class="nav-dot"></span>
+                }
               </a>
               <a routerLink="/users" routerLinkActive="active" (click)="mobileOpen.set(false)">
-                <app-icon name="users" [size]="18" /> @if (!collapsed()) { <span>จัดการผู้ใช้งาน</span> }
+                <app-icon name="users" [size]="18" />
+                @if (!collapsed()) {
+                  <span style="flex: 1">จัดการผู้ใช้งาน</span>
+                  @if (badges().pendingUsers > 0) {
+                    <span class="nav-badge">{{ badges().pendingUsers }}</span>
+                  }
+                } @else if (badges().pendingUsers > 0) {
+                  <span class="nav-dot"></span>
+                }
               </a>
             }
           }
@@ -194,9 +212,19 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
 
     .nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
     .nav a, .nav-group {
+      position: relative;
       display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 10px;
       color: inherit; text-decoration: none; font-size: 13.5px; font-weight: 500;
       border: none; background: transparent; width: 100%; cursor: pointer; font-family: inherit;
+    }
+    .nav-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+      background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+    }
+    .nav-dot {
+      position: absolute; top: 7px; right: 10px; width: 8px; height: 8px; border-radius: 50%;
+      background: #ef4444;
     }
     .nav a:hover, .nav-group:hover { background: rgba(255,255,255,0.12); }
     .nav a.active { background: #fff; color: var(--maroon-700); font-weight: 600; }
@@ -254,10 +282,11 @@ import { ChatWidgetComponent } from '../shared/chat-widget';
     }
   `,
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent implements OnInit, OnDestroy {
   auth = inject(AuthService);
   state = inject(AppState);
   theme = inject(ThemeService);
+  private api = inject(Api);
   private toasts = inject(Toasts);
   private router = inject(Router);
 
@@ -265,9 +294,36 @@ export class ShellComponent implements OnInit {
   mobileOpen = signal(false);
   scheduleOpen = signal(true);
   menuOpen = signal(false);
+  badges = signal<{ pendingUsers: number; pendingRequests: number }>({ pendingUsers: 0, pendingRequests: 0 });
+
+  private navSub?: Subscription;
+  private badgeTimer: any = null;
 
   ngOnInit() {
     this.state.refresh();
+    this.refreshBadges();
+    this.navSub = this.router.events
+      .pipe(filter((e) => e instanceof NavigationEnd))
+      .subscribe(() => this.refreshBadges());
+    this.badgeTimer = setInterval(() => this.refreshBadges(), 20000);
+  }
+
+  ngOnDestroy() {
+    this.navSub?.unsubscribe();
+    if (this.badgeTimer) clearInterval(this.badgeTimer);
+  }
+
+  async refreshBadges() {
+    if (!this.auth.isAdmin()) return;
+    try {
+      const b = await this.api.getAdminBadges();
+      this.badges.set({
+        pendingUsers: Number(b?.pendingUsers) || 0,
+        pendingRequests: Number(b?.pendingRequests) || 0,
+      });
+    } catch {
+      // ignore
+    }
   }
 
   roleLabel(role?: string) {
@@ -294,7 +350,7 @@ export class ShellComponent implements OnInit {
   }
 
   async reload() {
-    await this.state.refresh();
+    await Promise.all([this.state.refresh(), this.refreshBadges()]);
     this.toasts.info('โหลดข้อมูลล่าสุดแล้ว');
   }
 

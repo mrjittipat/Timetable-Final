@@ -743,7 +743,10 @@ router.put('/timetable', wrap((req, res) => {
 
 router.post('/timetable/validate', wrap((req, res) => {
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : (store.getTimetable()?.rows || []);
-  res.json(validate(rows, store.getData(), loadConfig()));
+  const cfg = loadConfig();
+  const val = validate(rows, store.getData(), cfg);
+  const draftSeed = snapshots.computeSnapshotSeed(rows, cfg.constraints);
+  res.json({ ...val, draftSeed });
 }));
 
 router.post('/timetable/move-options', wrap((req, res) => {
