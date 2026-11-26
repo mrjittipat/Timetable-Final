@@ -49,7 +49,59 @@ import { IconComponent } from '../../shared/icon';
       <section class="right-pane">
         <div class="auth-card">
           <div class="card-bar"></div>
-          @if (!registerMode()) {
+          @if (pendingAccount(); as pend) {
+            <div class="auth-body">
+              <div class="icon-tile" [class.success-tile]="!pendingFromLogin()" [class.warn-tile]="pendingFromLogin()">
+                <app-icon [name]="pendingFromLogin() ? 'clock' : 'check'" [size]="24" />
+              </div>
+              <h2>{{ pendingFromLogin() ? 'บัญชีนี้อยู่ระหว่างรออนุมัติ' : (theme.appearance().registerPendingTitle || 'ส่งคำขอสมัครบัญชีครูแล้ว') }}</h2>
+              <p class="muted small">
+                บัญชี <strong>{{ pend.name || pend.username }}</strong> (<span class="mono">{{ pend.username }}</span>)
+                {{ pendingFromLogin() ? 'ยังไม่สามารถเข้าสู่ระบบได้จนกว่าผู้ดูแลระบบจะอนุมัติ' : 'ถูกส่งเข้าสู่ระบบเรียบร้อยแล้ว' }}
+              </p>
+
+              <div class="reg-steps">
+                <div class="reg-step done">
+                  <div class="rs-dot">✓</div>
+                  <div class="rs-body">
+                    <div class="rs-title">ส่งคำขอไปแล้ว</div>
+                    <div class="rs-sub">บันทึกคำขอสมัครบัญชีอาจารย์เข้าสู่ระบบแล้ว</div>
+                  </div>
+                  <span class="badge success">เสร็จสิ้น</span>
+                </div>
+                <div class="reg-step active">
+                  <div class="rs-dot">2</div>
+                  <div class="rs-body">
+                    <div class="rs-title">รอแอดมินอนุมัติ</div>
+                    <div class="rs-sub">ผู้ดูแลระบบจะตรวจสอบและกดอนุมัติในหน้าจัดการผู้ใช้งาน</div>
+                  </div>
+                  <span class="badge warning">กำลังรอ</span>
+                </div>
+                <div class="reg-step">
+                  <div class="rs-dot">3</div>
+                  <div class="rs-body">
+                    <div class="rs-title">ยืนยันเรียบร้อย</div>
+                    <div class="rs-sub">เมื่อได้รับอนุมัติแล้ว สามารถเข้าสู่ระบบใช้งานได้ทันที</div>
+                  </div>
+                  <span class="badge">ถัดไป</span>
+                </div>
+              </div>
+
+              <div class="form" style="margin-top: 18px">
+                @if (pendingFromLogin()) {
+                  <button class="btn primary lg" type="button" [disabled]="busy()" (click)="submitLogin()" style="width: 100%">
+                    {{ busy() ? 'กำลังตรวจสอบ…' : 'ลองเข้าสู่ระบบอีกครั้ง' }}
+                  </button>
+                  <button class="btn" type="button" (click)="backToLogin()" style="width: 100%">เปลี่ยนบัญชี / กลับหน้าเข้าสู่ระบบ</button>
+                } @else {
+                  <button class="btn primary lg" type="button" (click)="backToLogin()" style="width: 100%">กลับหน้าเข้าสู่ระบบ</button>
+                }
+                @if (theme.appearance().loginShowPublicLink !== false) {
+                  <a routerLink="/p" class="btn ghost" style="width: 100%">{{ theme.appearance().loginPublicLinkText || 'ดูตารางเรียนสาธารณะ' }}</a>
+                }
+              </div>
+            </div>
+          } @else if (!registerMode()) {
             <div class="auth-body">
               <div class="icon-tile"><app-icon name="shield" [size]="24" /></div>
               <h2>{{ theme.appearance()['loginCardTitle'] || 'เข้าสู่ระบบ' }}</h2>
@@ -95,48 +147,6 @@ import { IconComponent } from '../../shared/icon';
                 <div class="divider"><span>หรือ</span></div>
                 <a routerLink="/p" class="btn" style="width: 100%">{{ theme.appearance().loginPublicLinkText }}</a>
               }
-            </div>
-          } @else if (regSuccess()) {
-            <div class="auth-body">
-              <div class="icon-tile success-tile"><app-icon name="check" [size]="24" /></div>
-              <h2>{{ theme.appearance().registerPendingTitle || 'ส่งคำขอสมัครบัญชีครูแล้ว' }}</h2>
-              <p class="muted small">
-                บัญชี <strong>{{ regName || regUsername }}</strong> (<span class="mono">{{ regUsername }}</span>) ถูกส่งเข้าสู่ระบบเรียบร้อยแล้ว
-              </p>
-
-              <div class="reg-steps">
-                <div class="reg-step done">
-                  <div class="rs-dot">✓</div>
-                  <div class="rs-body">
-                    <div class="rs-title">ส่งคำขอไปแล้ว</div>
-                    <div class="rs-sub">บันทึกคำขอสมัครบัญชีอาจารย์เข้าสู่ระบบแล้ว</div>
-                  </div>
-                  <span class="badge success">เสร็จสิ้น</span>
-                </div>
-                <div class="reg-step active">
-                  <div class="rs-dot">2</div>
-                  <div class="rs-body">
-                    <div class="rs-title">รอแอดมินอนุมัติ</div>
-                    <div class="rs-sub">ผู้ดูแลระบบจะตรวจสอบและกดอนุมัติในหน้าจัดการผู้ใช้งาน</div>
-                  </div>
-                  <span class="badge warning">กำลังรอ</span>
-                </div>
-                <div class="reg-step">
-                  <div class="rs-dot">3</div>
-                  <div class="rs-body">
-                    <div class="rs-title">ยืนยันเรียบร้อย</div>
-                    <div class="rs-sub">เมื่อได้รับอนุมัติแล้ว สามารถเข้าสู่ระบบใช้งานได้ทันที</div>
-                  </div>
-                  <span class="badge">ถัดไป</span>
-                </div>
-              </div>
-
-              <div class="form" style="margin-top: 18px">
-                <button class="btn primary lg" type="button" (click)="backToLogin()" style="width: 100%">กลับหน้าเข้าสู่ระบบ</button>
-                @if (theme.appearance().loginShowPublicLink !== false) {
-                  <a routerLink="/p" class="btn" style="width: 100%">{{ theme.appearance().loginPublicLinkText || 'ดูตารางเรียนสาธารณะ' }}</a>
-                }
-              </div>
             </div>
           } @else {
             <div class="auth-body">
@@ -257,6 +267,7 @@ import { IconComponent } from '../../shared/icon';
       color: var(--maroon-700); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
     }
     .icon-tile.success-tile { background: #e8f8ee; color: #16803d; }
+    .icon-tile.warn-tile { background: #fff4d6; color: #b45309; }
     .reg-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
     .reg-step {
       display: flex; align-items: center; gap: 12px; padding: 10px 12px;
@@ -301,7 +312,8 @@ export class LoginPage implements OnInit {
   error = signal('');
 
   registerMode = signal(false);
-  regSuccess = signal(false);
+  pendingAccount = signal<{ username: string; name: string } | null>(null);
+  pendingFromLogin = signal(false);
   teachers = signal<any[]>([]);
   regTeacherId = '';
   regName = '';
@@ -324,7 +336,8 @@ export class LoginPage implements OnInit {
 
   backToLogin() {
     this.registerMode.set(false);
-    this.regSuccess.set(false);
+    this.pendingAccount.set(null);
+    this.pendingFromLogin.set(false);
     this.error.set('');
     this.regTeacherId = '';
     this.regName = '';
@@ -335,7 +348,8 @@ export class LoginPage implements OnInit {
   async openRegister() {
     this.registerMode.set(true);
     this.error.set('');
-    this.regSuccess.set(false);
+    this.pendingAccount.set(null);
+    this.pendingFromLogin.set(false);
     try {
       const res = await this.auth.registerOptions();
       this.teachers.set(res.teachers || []);
@@ -357,6 +371,8 @@ export class LoginPage implements OnInit {
     this.busy.set(true);
     try {
       const u = await this.auth.login(this.username, this.password);
+      this.pendingAccount.set(null);
+      this.pendingFromLogin.set(false);
       const next = this.route.snapshot.queryParamMap.get('next');
       if (next) {
         this.router.navigateByUrl(next);
@@ -365,8 +381,19 @@ export class LoginPage implements OnInit {
       } else {
         this.router.navigate(['/']);
       }
-    } catch (err) {
-      this.error.set(this.api.errorMessage(err));
+    } catch (err: any) {
+      const body = err?.error;
+      if (body?.code === 'PENDING_APPROVAL' || String(body?.message || '').includes('รออนุมัติ')) {
+        this.pendingFromLogin.set(true);
+        this.pendingAccount.set({
+          username: body?.pendingUser?.username || this.username,
+          name: body?.pendingUser?.name || this.username,
+        });
+      } else {
+        this.pendingAccount.set(null);
+        this.pendingFromLogin.set(false);
+        this.error.set(this.api.errorMessage(err));
+      }
     } finally {
       this.busy.set(false);
     }
@@ -383,7 +410,8 @@ export class LoginPage implements OnInit {
         teacher_id: this.regTeacherId,
         role: 'teacher',
       });
-      this.regSuccess.set(true);
+      this.pendingFromLogin.set(false);
+      this.pendingAccount.set({ username: this.regUsername, name: this.regName || this.regUsername });
     } catch (err) {
       this.error.set(this.api.errorMessage(err));
     } finally {

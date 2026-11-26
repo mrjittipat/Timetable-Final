@@ -129,7 +129,10 @@ export function login(username, password, res) {
     throw httpError(401, 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
   }
   if (u.status === 'pending') {
-    throw httpError(403, 'บัญชีนี้อยู่ระหว่างรออนุมัติจากผู้ดูแลระบบ');
+    const err = httpError(403, 'บัญชีนี้อยู่ระหว่างรออนุมัติจากผู้ดูแลระบบ');
+    err.code = 'PENDING_APPROVAL';
+    err.pendingUser = { username: u.username, name: u.name };
+    throw err;
   }
   if (u.status === 'rejected') {
     throw httpError(403, 'คำขอสมัครบัญชีนี้ไม่ได้รับการอนุมัติ');

@@ -29,7 +29,11 @@ if (fs.existsSync(FRONTEND_DIST)) {
 app.use((err, _req, res, _next) => {
   const status = err.status || 500;
   if (status >= 500) console.error(err);
-  res.status(status).json({ message: err.message || 'เกิดข้อผิดพลาด' });
+  res.status(status).json({
+    message: err.message || 'เกิดข้อผิดพลาด',
+    ...(err.code ? { code: err.code } : {}),
+    ...(err.pendingUser ? { pendingUser: err.pendingUser } : {}),
+  });
 });
 
 const port = Number(process.env.PORT) || 3000;
